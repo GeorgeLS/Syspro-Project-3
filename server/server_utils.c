@@ -1,8 +1,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "server_utils.h"
-#include "../Common/string_utils.h"
-#include "../Common/report_utils.h"
+#include "../common/string_utils.h"
+#include "../common/report_utils.h"
 
 void usage(void) {
     fprintf(stderr,
@@ -20,12 +20,19 @@ server_options parse_command_line_arguments(int argc, char *argv[]) {
         option = getopt_long_only(argc, argv, "p:", options_spec, &option_index);
         if (option == -1) break;
         switch (option) {
-            case 'p':
-                if (!str_to_ui64(optarg, (u64 *) &options.port_number)) {
+            case 'p': {
+                u64 value;
+                if (!str_to_ui64(optarg, &value)) {
                     die("There was an error while reading the port number."
                         "Please make sure you have provided a valid port number.");
                 }
+                if (value < 2000) {
+                    die("You must specify a socket number greater or equal to 2000.");
+                }
+                options.port_number = (u16) value;
                 break;
+            }
+
             case 'h':
                 usage();
             case '?':

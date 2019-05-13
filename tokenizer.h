@@ -2,7 +2,7 @@
 #define EXERCISE_I_TOKENIZER_H
 
 #include <stddef.h>
-#include "Common/attributes.h"
+#include "common/attributes.h"
 
 typedef struct tokenizer {
     char *stream;

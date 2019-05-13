@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include "client_utils.h"
-#include "../Common/string_utils.h"
-#include "../Common/report_utils.h"
+#include "../common/string_utils.h"
+#include "../common/report_utils.h"
 
 void usage(void) {
     fprintf(stderr,
@@ -35,6 +35,9 @@ client_options parse_command_line_arguments(int argc, char *argv[]) {
                 if (!str_to_ui64(optarg, &value)) {
                     die("There was an error while reading the port number."
                         "Please make sure you provide a valid port number.");
+                }
+                if (value < 2000) {
+                    die("You must specify a port number greater of equal to 2000.");
                 }
                 options.port_number = (u16) value;
                 break;

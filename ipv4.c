@@ -1,6 +1,6 @@
 #include "ipv4.h"
-#include "Common/string_utils.h"
-#include "Common/common_types.h"
+#include "common/string_utils.h"
+#include "common/common_types.h"
 #include <string.h>
 
 bool ipv4_get_address_bytes(const char *address, ubyte *byte_buffer) {

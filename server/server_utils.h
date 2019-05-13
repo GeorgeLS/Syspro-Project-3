@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 #include <getopt.h>
-#include "../Common/attributes.h"
-#include "../Common/common_types.h"
+#include "../common/attributes.h"
+#include "../common/common_types.h"
 
 typedef struct server_options {
     u16 port_number;

@@ -2,8 +2,8 @@
 #define EXERCISE_III_IPV4_H
 
 #include <stdbool.h>
-#include "Common/attributes.h"
-#include "Common/common_types.h"
+#include "common/attributes.h"
+#include "common/common_types.h"
 
 #define IPV4_BYTES 4
 #define MIN_IVP4_LENGTH 7

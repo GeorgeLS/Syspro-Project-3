@@ -7,6 +7,7 @@
 #define __NON_NULL__(...) __attribute__((nonnull(__VA_ARGS__)))
 #define __FORMAT__(format_type, index, first_to_check) __attribute__((format(format_type, index, first_to_check)))
 #define __INLINE__ inline __attribute__((always_inline))
+#define __WARN_UNUSED_RESULT__ __attribute__((warn_unused_result))
 
 #else
 
@@ -14,6 +15,7 @@
 #define __NON_NULL__(...)
 #define __FORMAT__(format_type, index, first_to_check)
 #define __INLINE__
+#define __WARN_UNUSED_RESULT__
 
 #endif
 
