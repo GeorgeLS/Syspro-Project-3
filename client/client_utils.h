@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <getopt.h>
 #include "../ipv4.h"
+#include "../socket/ipv4_socket.h"
 
 static struct option options_spec[] = {
         {"d", required_argument, NULL, 'd'},

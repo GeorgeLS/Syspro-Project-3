@@ -9,4 +9,7 @@ void die(const char *fmt, ...);
 __FORMAT__(printf, 1, 2)
 void report_error(const char *fmt, ...);
 
+__FORMAT__(printf, 1, 2)
+void report_response(const char *fmt, ...);
+
 #endif //EXERCISE_III_REPORT_UTILS_H
