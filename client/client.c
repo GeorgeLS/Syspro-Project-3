@@ -36,6 +36,22 @@ ipv4_socket connect_to_server(void) {
     return server_socket;
 }
 
+void add_clients_to_list(request request) {
+    for (byte *address = request.data + request.header.command_length;
+         address < request.data + request.header.bytes;
+         address += IPV4_ADDRESS_SIZE) {
+        u32 binary_ip = *((u32 *) address);
+        char ip[MAX_IPV4_LENGTH];
+        inet_ntop(AF_INET, &binary_ip, ip, MAX_IPV4_LENGTH);
+        u16 port_number = ntohs(*((u16 *) (address + sizeof(u32))));
+        client_tuple tuple = {
+                .ip = ip,
+                .port_number = port_number
+        };
+        client_list_rpush(&other_clients, &tuple);
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 13) usage();
     options = parse_command_line_arguments(argc, argv);
@@ -61,15 +77,7 @@ int main(int argc, char *argv[]) {
     request = get_request(&server_socket);
 
     if (str_n_equals(request.data, CLIENT_LIST, request.header.command_length)) {
-        for (byte *address = request.data + request.header.command_length;
-             address < request.data + request.header.bytes;
-             address += IPV4_ADDRESS_SIZE) {
-            u32 binary_ip = *((u32 *) address);
-            char ip[MAX_IPV4_LENGTH];
-            inet_ntop(AF_INET, &binary_ip, ip, MAX_IPV4_LENGTH);
-            u16 port_number = ntohs(*((u16 *) (address + sizeof(u32))));
-            report_response("IP: %.*s\nPort: %" PRIu16, MAX_IPV4_LENGTH, ip, port_number);
-        }
+        add_clients_to_list(request);
     }
 
     close(client_socket.socket_fd);
