@@ -10,6 +10,7 @@
 #define MAX_IPV4_LENGTH 15
 #define MAX_IPV4_OCTET 255
 #define MIN_IPV4_OCTET 1
+#define IPV4_ADDRESS_SIZE (sizeof(u32) + sizeof(u16))
 
 typedef struct ipv4 {
     char *address;

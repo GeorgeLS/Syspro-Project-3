@@ -28,3 +28,7 @@ size_t str_count_occurrences(const char *source, char value) {
     }
     return occurrences;
 }
+
+bool str_n_equals(const char *restrict str1, const char *restrict str2, size_t bytes) {
+    return strncmp(str1, str2, bytes) == 0;
+}

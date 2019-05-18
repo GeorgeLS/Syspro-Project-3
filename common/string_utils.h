@@ -15,4 +15,7 @@ bool str_to_ui64(const char *source, u64 *destination);
 __NON_NULL__(1)
 size_t str_count_occurrences(const char *source, char value);
 
+__NON_NULL__(1, 2)
+bool str_n_equals(const char *restrict str1, const char *restrict str2, size_t bytes);
+
 #endif //EXERCISE_III_STRING_UTILS_H

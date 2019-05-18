@@ -5,12 +5,13 @@
 #include <netdb.h>
 #include "../common/common_types.h"
 #include "../common/attributes.h"
+#include "../commands.h"
 
 #define IPV4_SOCKET_BACKLOG_SIZE 5
 #define IPV4_ANY_ADDRESS (struct in_addr) {htonl(INADDR_ANY)}
 
 typedef struct ipv4_socket {
-    struct sockaddr_in socket;
+    struct sockaddr_in address;
     int socket_fd;
 } ipv4_socket;
 
@@ -29,7 +30,13 @@ int ipv4_socket_listen(ipv4_socket *socket);
 __NON_NULL__(1) __WARN_UNUSED_RESULT__
 int ipv4_socket_accept(ipv4_socket *server_socket, ipv4_socket *client_socket);
 
-__NON_NULL__(1, 2) __WARN_UNUSED_RESULT__
-int ipv4_socket_connect(ipv4_socket *server_socket, ipv4_socket *client_socket);
+__NON_NULL__(1) __WARN_UNUSED_RESULT__
+int ipv4_socket_connect(ipv4_socket *socket);
+
+__NON_NULL__(1) __WARN_UNUSED_RESULT__
+ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request);
+
+__NON_NULL__(1)
+request get_request(struct ipv4_socket *sender);
 
 #endif //EXERCISE_III_IPV4_SOCKET_H

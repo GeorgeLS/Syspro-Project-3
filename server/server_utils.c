@@ -27,7 +27,7 @@ server_options parse_command_line_arguments(int argc, char *argv[]) {
                         "Please make sure you have provided a valid port number.");
                 }
                 if (value < 2000) {
-                    die("You must specify a socket number greater or equal to 2000.");
+                    die("You must specify a address number greater or equal to 2000.");
                 }
                 options.port_number = (u16) value;
                 break;
