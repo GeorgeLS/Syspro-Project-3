@@ -46,7 +46,7 @@ ipv4_socket connect_to_server(void) {
     return server_socket;
 }
 
-void add_clients_to_list(request request) {
+void add_clients_to_list_and_buffer(request request) {
     for (byte *address = request.data + request.header.command_length;
          address < request.data + request.header.bytes;
          address += IPV4_ADDRESS_SIZE) {
@@ -54,10 +54,15 @@ void add_clients_to_list(request request) {
         char ip[MAX_IPV4_LENGTH];
         inet_ntop(AF_INET, &binary_ip, ip, MAX_IPV4_LENGTH);
         u16 port_number = ntohs(*((u16 *) (address + sizeof(u32))));
-        client_tuple tuple = {
-                .ip = ip,
-                .port_number = port_number};
-        client_list_rpush(&other_clients, &tuple);
+        client_file_info info = {
+                .tuple = {
+                        .ip = ip,
+                        .port_number = port_number
+                },
+                .pathname_with_version = {0}
+        };
+        client_list_rpush(&other_clients, &info.tuple);
+        shared_buffer_push(&info_buffer, &info);
     }
 }
 
@@ -181,11 +186,10 @@ int main(int argc, char *argv[]) {
     request = get_request(&server_socket);
 
     if (str_n_equals(request.data, CLIENT_LIST, request.header.command_length)) {
-        add_clients_to_list(request);
+        add_clients_to_list_and_buffer(request);
     }
 
     info_buffer = shared_buffer_create(options.buffer_size);
-
     // we assume that the number of threads won't
     // be that large so we allocate memory on the stack
     pthread_t *thread_pool = alloca(options.worker_threads * sizeof(pthread_t));
