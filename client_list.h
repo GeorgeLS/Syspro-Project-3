@@ -27,6 +27,9 @@ typedef struct client_list {
     bool multithreaded;
 } client_list;
 
+__NON_NULL__(1, 2)
+bool client_tuple_equals(client_tuple *tuple1, client_tuple *tuple2);
+
 client_list client_list_create(bool multithreaded);
 
 __NON_NULL__(1, 2)
@@ -35,5 +38,7 @@ void client_list_rpush(client_list *list, client_tuple *tuple);
 __NON_NULL__(1, 2)
 void client_list_lpush(client_list *list, client_tuple *tuple);
 
+__NON_NULL__(1, 2)
+bool client_list_exists(client_list *list, client_tuple *tuple);
 
 #endif //EXERCISE_III_CLIENT_LIST_H

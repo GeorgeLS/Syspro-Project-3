@@ -22,6 +22,9 @@ typedef struct shared_buffer {
     size_t right;
 } shared_buffer;
 
+__NON_NULL__(1)
+bool client_file_info_contains_file(client_file_info *info);
+
 shared_buffer shared_buffer_create(size_t size);
 
 __NON_NULL__(1)
@@ -35,6 +38,5 @@ void shared_buffer_push(shared_buffer *buffer, client_file_info *info);
 
 __NON_NULL__(1) __WARN_UNUSED_RESULT__
 client_file_info *shared_buffer_pop(shared_buffer *buffer);
-
 
 #endif //EXERCISE_III_SHARED_CLIENT_BUFFER_H

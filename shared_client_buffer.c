@@ -1,6 +1,12 @@
 #include "shared_client_buffer.h"
 #include "common/macros.h"
 
+bool client_file_info_contains_file(client_file_info *info) {
+    char zero_value[MAX_PATHNAME_SIZE] = {0};
+    bool result = memcmp(info->pathname, zero_value, MAX_PATHNAME_SIZE) == 0;
+    return result;
+}
+
 shared_buffer shared_buffer_create(size_t size) {
     return (shared_buffer) {
             .info_table = __MALLOC__(size, client_file_info),
