@@ -83,28 +83,47 @@ bool request_files_from_client(client_file_info *info) {
             .ip = info->tuple.ip,
             .port_number = info->tuple.port_number};
 
-    if (client_list_exists(&other_clients, &tuple)) {
-        ipv4_socket client_to_connect;
-        if (!connect_to(&tuple, &client_to_connect)) {
-            report_error("Couldn't connect to the client with I.P: %s and Port: %" PRIu16,
-                         tuple.ip, tuple.port_number);
-            return false;
-        }
-        request request = create_get_file_list_request();
-        if (ipv4_socket_send_request(&client_to_connect, request) < 0) {
-            report_error("Couldn't send GET_FILE_LIST request to client with"
-                         "I.P: %s and Port: %" PRIu16,
-                         tuple.ip, tuple.port_number);
-        }
-        free_request(&request);
+    if (!client_list_exists(&other_clients, &tuple)) {
+        return false;
     }
+
+    ipv4_socket client_to_connect;
+    if (!connect_to(&tuple, &client_to_connect)) {
+        report_error("Couldn't connect to the client with I.P: %s and Port: %" PRIu16,
+                     tuple.ip, tuple.port_number);
+        return false;
+    }
+    request request = create_get_file_list_request();
+    if (ipv4_socket_send_request(&client_to_connect, request) < 0) {
+        report_error("Couldn't send GET_FILE_LIST request to client with"
+                     "I.P: %s and Port: %" PRIu16,
+                     tuple.ip, tuple.port_number);
+    }
+    free_request(&request);
+    client_file_info client_info = {
+            .tuple = {
+                    .ip = info->tuple.ip,
+                    .port_number = info->tuple.port_number
+            }
+    };
+    request = get_request(&client_to_connect);
+
+    for (byte *address = request.data + request.header.command_length;
+         address < request.data + request.header.bytes;
+         address += sizeof(versioned_pathname)) {
+        client_info.pathname_with_version = *((versioned_pathname *) address);
+        shared_buffer_push(&info_buffer, &client_info);
+    }
+
+    free_request(&request);
+
     return true;
 }
 
 void *worker_function(void *args) {
     while (true) {
         while (shared_buffer_emtpy(&info_buffer)) {
-            sleep(2);
+//            sleep(2);
         }
 
         client_file_info *info = shared_buffer_pop(&info_buffer);
@@ -114,6 +133,7 @@ void *worker_function(void *args) {
                 break;
             }
         } else {
+
         }
     }
     return NULL;

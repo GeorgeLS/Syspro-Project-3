@@ -104,7 +104,7 @@ request create_file_list_request(const char *root_directory) {
     size_t pathnames_n;
     get_all_pathnames_and_versions(root_directory, &pathnames, &pathnames_n);
     request_header header = {
-            .bytes = __COMMAND_LENGTH(FILE_LIST) + (pathnames_n * (MAX_PATHNAME_SIZE + SHA256_SIZE)),
+            .bytes = __COMMAND_LENGTH(FILE_LIST) + (pathnames_n * (MAX_PATHNAME_SIZE + sizeof(u64))),
             .command_length = __COMMAND_LENGTH(FILE_LIST)
     };
 
@@ -117,8 +117,8 @@ request create_file_list_request(const char *root_directory) {
     for (size_t i = 0U; i != pathnames_n; ++i) {
         memcpy(data, pathnames[i].pathname, MAX_PATHNAME_SIZE);
         data += MAX_PATHNAME_SIZE;
-        memcpy(data, pathnames[i].version, SHA256_SIZE);
-        data += SHA256_SIZE;
+        memcpy(data, &pathnames[i].version, sizeof(u64));
+        data += sizeof(u64);
     }
 
     return (request) {

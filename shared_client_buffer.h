@@ -6,12 +6,15 @@
 #include "client_list.h"
 
 #define MAX_PATHNAME_SIZE 128
-#define SHA256_SIZE 256
+
+typedef struct versioned_pathname {
+    char pathname[MAX_PATHNAME_SIZE];
+    u64 version;
+} versioned_pathname;
 
 typedef struct client_file_info {
     client_tuple tuple;
-    char pathname[MAX_PATHNAME_SIZE];
-    char version[SHA256_SIZE];
+    versioned_pathname pathname_with_version;
 } client_file_info;
 
 typedef struct shared_buffer {

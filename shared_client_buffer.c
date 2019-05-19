@@ -3,7 +3,7 @@
 
 bool client_file_info_contains_file(client_file_info *info) {
     char zero_value[MAX_PATHNAME_SIZE] = {0};
-    bool result = memcmp(info->pathname, zero_value, MAX_PATHNAME_SIZE) == 0;
+    bool result = memcmp(info->pathname_with_version.pathname, zero_value, MAX_PATHNAME_SIZE) == 0;
     return result;
 }
 

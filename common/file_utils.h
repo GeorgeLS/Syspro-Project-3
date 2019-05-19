@@ -11,11 +11,6 @@ typedef struct entire_file {
     size_t size;
 } entire_file;
 
-typedef struct versioned_pathname {
-    char pathname[MAX_PATHNAME_SIZE];
-    char version[SHA256_SIZE];
-} versioned_pathname;
-
 __NON_NULL__(1)
 entire_file read_entire_file_into_memory(const char *filename);
 
