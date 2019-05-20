@@ -12,6 +12,7 @@
 #include "../commands.h"
 #include "../common/string_utils.h"
 #include "../shared_client_buffer.h"
+#include "../common/macros.h"
 
 client_options options;
 
@@ -19,7 +20,7 @@ ipv4_socket self_socket;
 
 list other_clients;
 
-shared_buffer info_buffer;
+shared_buffer *info_buffer;
 
 void setup_client_socket() {
     if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &self_socket) < 0) {
@@ -51,15 +52,14 @@ void add_clients_to_list_and_buffer(request request) {
         char ip[MAX_IPV4_LENGTH];
         inet_ntop(AF_INET, &binary_ip, ip, MAX_IPV4_LENGTH);
         u16 port_number = ntohs(*((u16 *) (address + sizeof(u32))));
-        client_file_info info = {
-                .tuple = {
-                        .ip = ip,
-                        .port_number = port_number
-                },
-                .pathname_with_version = {0}
+        client_file_info *info = __MALLOC__(1, client_file_info);
+        info->tuple = (client_tuple) {
+                .ip = strdup(ip),
+                .port_number = port_number
         };
-        list_rpush(&other_clients, &info.tuple);
-        shared_buffer_push(&info_buffer, &info);
+        info->pathname_with_version = (versioned_pathname) {0};
+        list_rpush(&other_clients, &info->tuple);
+        shared_buffer_push(info_buffer, info);
     }
 }
 
@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
         usage();
     }
     options = parse_command_line_arguments(argc, argv);
-    other_clients = list_create(NULL, LIST_MULTITHREADED);
+    other_clients = list_create(client_tuple_equals, LIST_MULTITHREADED);
     info_buffer = shared_buffer_create(options.buffer_size);
 
     //    setup_client_socket();

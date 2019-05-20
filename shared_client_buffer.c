@@ -7,14 +7,13 @@ bool client_file_info_contains_file(client_file_info *info) {
     return result;
 }
 
-shared_buffer shared_buffer_create(size_t size) {
-    return (shared_buffer) {
-            .info_table = __MALLOC__(size, client_file_info),
-            .mutex = PTHREAD_MUTEX_INITIALIZER,
-            .table_size = size,
-            .left = 0U,
-            .right = 0U,
-    };
+shared_buffer *shared_buffer_create(size_t size) {
+    shared_buffer *buffer = __MALLOC__(1, shared_buffer);
+    buffer->info_table = __MALLOC__(size, client_file_info);
+    buffer->table_size = size;
+    buffer->left = buffer->right = 0U;
+    pthread_mutex_init(&buffer->mutex, NULL);
+    return buffer;
 }
 
 bool shared_buffer_full(shared_buffer *buffer) {
@@ -31,6 +30,7 @@ void shared_buffer_push(shared_buffer *buffer, client_file_info *info) {
 
     if (shared_buffer_full(buffer)) goto __EXIT__;
 
+    client_file_info *element = &buffer->info_table[buffer->right];
     buffer->info_table[buffer->right] = *info;
     buffer->right = (buffer->right + 1U) % buffer->table_size;
 

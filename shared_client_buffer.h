@@ -30,7 +30,7 @@ typedef struct shared_buffer {
 __NON_NULL__(1)
 bool client_file_info_contains_file(client_file_info *info);
 
-shared_buffer shared_buffer_create(size_t size);
+shared_buffer *shared_buffer_create(size_t size);
 
 __NON_NULL__(1)
 bool shared_buffer_full(shared_buffer *buffer);

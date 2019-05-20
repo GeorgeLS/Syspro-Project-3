@@ -104,6 +104,7 @@ bool list_element_exists(list *list, void *element) {
     do {
         if (list->comparer(curr->data, element)) {
             exists = true;
+            goto __EXIT__;
         }
         curr = curr->next;
     } while (curr != list->head);

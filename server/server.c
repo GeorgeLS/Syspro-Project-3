@@ -33,15 +33,14 @@ int main(int argc, char *argv[]) {
     options = parse_command_line_arguments(argc, argv);
 
     connected_clients = list_create(client_tuple_equals, !LIST_MULTITHREADED);
-    client_tuple tuple = {
-            .ip = "192.168.0.1",
-            .port_number = 2500
-    };
-    list_rpush(&connected_clients, &tuple);
-
-    tuple.ip = "182.123.40.12";
-    tuple.port_number = 6000;
-    list_rpush(&connected_clients, &tuple);
+    client_tuple *tuple = __MALLOC__(1, client_tuple);
+    tuple->ip = "127.0.0.1";
+    tuple->port_number = 2500;
+    list_rpush(&connected_clients, tuple);
+    tuple = __MALLOC__(1, client_tuple);
+    tuple->ip = "127.0.0.1";
+    tuple->port_number = 6000;
+    list_rpush(&connected_clients, tuple);
 
     setup_server_socket();
 
