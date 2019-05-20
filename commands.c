@@ -169,12 +169,11 @@ request create_get_file_list_request(void) {
     };
 }
 
-request create_file_list_request(const char *root_directory) {
-    versioned_pathname *pathnames;
-    size_t pathnames_n;
-    get_all_pathnames_and_versions(root_directory, &pathnames, &pathnames_n);
+request create_file_list_request(const char *restrict root_directory) {
+    list versioned_pathnames = list_create(NULL, !LIST_MULTITHREADED);
+    get_all_pathnames_and_versions(root_directory, &versioned_pathnames);
     request_header header = {
-            .bytes = __COMMAND_LENGTH(FILE_LIST) + (pathnames_n * (MAX_PATHNAME_SIZE + sizeof(u64))),
+            .bytes = __COMMAND_LENGTH(FILE_LIST) + (versioned_pathnames.size * (MAX_PATHNAME_SIZE + sizeof(u64))),
             .command_length = __COMMAND_LENGTH(FILE_LIST)
     };
 
@@ -184,15 +183,37 @@ request create_file_list_request(const char *root_directory) {
     memcpy(data, FILE_LIST, header.command_length);
     data += header.command_length;
 
-    for (size_t i = 0U; i != pathnames_n; ++i) {
-        memcpy(data, pathnames[i].pathname, MAX_PATHNAME_SIZE);
+    list_node *curr = versioned_pathnames.head;
+    do {
+        versioned_pathname *vpathname = curr->data;
+        memcpy(data, vpathname->pathname, MAX_PATHNAME_SIZE);
         data += MAX_PATHNAME_SIZE;
-        memcpy(data, &pathnames[i].version, sizeof(u64));
+        memcpy(data, &vpathname->version, sizeof(u64));
         data += sizeof(u64);
-    }
+    } while (curr != versioned_pathnames.head);
 
     return (request) {
             .data = base_address,
             .header = header
+    };
+}
+
+request create_get_file_request(versioned_pathname *vpathname) {
+    request_header header = {
+            .command_length = __COMMAND_LENGTH(GET_FILE),
+            .bytes = __COMMAND_LENGTH(GET_FILE) + sizeof(versioned_pathname)
+    };
+
+    byte *data = __MALLOC__(header.bytes, byte);
+    byte *base_address = data;
+
+    memcpy(data, GET_FILE, header.command_length);
+    data += header.command_length;
+
+    memcpy(data, vpathname, sizeof(versioned_pathname));
+
+    return (request) {
+            .header = header,
+            .data = base_address
     };
 }

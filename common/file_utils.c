@@ -51,6 +51,7 @@ __add_pathname_and_version_to_list(const char *restrict pathname, list *list) {
     }
     vpathname->version = compute_file_hash(file);
     list_rpush(list, vpathname);
+    free(file.data);
 }
 
 void get_all_pathnames_and_versions(const char *restrict root_directory, list *pathnames_out) {

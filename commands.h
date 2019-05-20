@@ -6,6 +6,7 @@
 #include "common/attributes.h"
 #include "common/common_types.h"
 #include "generic_multithreaded_list.h"
+#include "shared_client_buffer.h"
 
 struct ipv4_socket;
 
@@ -78,6 +79,9 @@ request create_client_list_request(list *list);
 request create_get_file_list_request(void);
 
 __NON_NULL__(1)
-request create_file_list_request(const char *root_directory);
+request create_file_list_request(const char *restrict root_directory);
+
+__NON_NULL__(1)
+request create_get_file_request(versioned_pathname *vpathname);
 
 #endif //EXERCISE_III_COMMANDS_H

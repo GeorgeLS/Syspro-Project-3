@@ -15,14 +15,14 @@
 
 client_options options;
 
-ipv4_socket client_socket;
+ipv4_socket self_socket;
 
 list other_clients;
 
 shared_buffer info_buffer;
 
 void setup_client_socket() {
-    if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &client_socket) < 0) {
+    if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &self_socket) < 0) {
         die("Could not create client address!");
     }
 }
@@ -80,35 +80,18 @@ bool connect_to(client_tuple *tuple, ipv4_socket *socket_out) {
     return true;
 }
 
-bool request_files_from_client(client_file_info *info) {
-    client_tuple tuple = {
-            .ip = info->tuple.ip,
-            .port_number = info->tuple.port_number};
-
-    if (!list_element_exists(&other_clients, &tuple)) {
-        return false;
-    }
-
-    ipv4_socket client_to_connect;
-    if (!connect_to(&tuple, &client_to_connect)) {
-        report_error("Couldn't connect to the client with I.P: %s and Port: %" PRIu16,
-                     tuple.ip, tuple.port_number);
-        return false;
-    }
+bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) {
     request request = create_get_file_list_request();
-    if (ipv4_socket_send_request(&client_to_connect, request) < 0) {
+    if (ipv4_socket_send_request(client_socket, request) < 0) {
         report_error("Couldn't send GET_FILE_LIST request to client with"
                      "I.P: %s and Port: %" PRIu16,
-                     tuple.ip, tuple.port_number);
+                     tuple->ip, tuple->port_number);
     }
     free_request(&request);
     client_file_info client_info = {
-            .tuple = {
-                    .ip = info->tuple.ip,
-                    .port_number = info->tuple.port_number
-            }
+            .tuple = *tuple
     };
-    request = ipv4_socket_get_request(&client_to_connect);
+    request = ipv4_socket_get_request(client_socket);
 
     for (byte *address = request.data + request.header.command_length;
          address < request.data + request.header.bytes;
@@ -118,10 +101,17 @@ bool request_files_from_client(client_file_info *info) {
     }
 
     free_request(&request);
-    close(client_to_connect.socket_fd);
+    close(client_socket->socket_fd);
 
     return true;
 }
+
+bool get_file_from_client(ipv4_socket *client_socket, client_file_info *info) {
+    return true;
+}
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
 
 void *worker_function(void *args) {
     while (true) {
@@ -131,16 +121,36 @@ void *worker_function(void *args) {
 
         client_file_info *info = shared_buffer_pop(&info_buffer);
 
+        client_tuple tuple = {
+                .ip = info->tuple.ip,
+                .port_number = info->tuple.port_number
+        };
+
+        if (!list_element_exists(&other_clients, &tuple)) {
+            continue;
+        }
+
+        ipv4_socket client_socket;
+        if (!connect_to(&tuple, &client_socket)) {
+            report_error("Couldn't connect to the client with I.P: %s and Port: %" PRIu16,
+                         tuple.ip, tuple.port_number);
+            continue;
+        }
+
         if (!client_file_info_contains_file(info)) {
-            if (!request_files_from_client(info)) {
-                break;
+            if (!request_files_from_client(&client_socket, &tuple)) {
+                continue;
             }
         } else {
-
+            if (!get_file_from_client(&client_socket, info)) {
+                continue;
+            }
         }
     }
     pthread_exit(NULL);
 }
+
+#pragma clang diagnostic pop
 
 void create_threads(pthread_t *thread_pool) {
     for (size_t i = 0U; i != options.worker_threads; ++i) {
@@ -197,6 +207,6 @@ int main(int argc, char *argv[]) {
 
     wait_threads(thread_pool);
 
-    close(client_socket.socket_fd);
+    close(self_socket.socket_fd);
     return EXIT_SUCCESS;
 }

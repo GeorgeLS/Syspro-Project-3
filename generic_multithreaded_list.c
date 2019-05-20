@@ -20,7 +20,7 @@ __list_remove(list_node *left_side, list_node *right_side, list_node *node) {
 __INLINE__ static list_node *
 __create_list_node(void *data) {
     list_node *node = __MALLOC__(1, list_node);
-    node->next = node->previous = NULL;
+    node->next = node->previous = node;
     node->data = data;
     return node;
 }
