@@ -10,7 +10,6 @@
 #include "../socket/ipv4_socket.h"
 #include "../common/report_utils.h"
 #include "../commands.h"
-#include "../client_list.h"
 #include "../common/string_utils.h"
 #include "../shared_client_buffer.h"
 
@@ -18,11 +17,9 @@ client_options options;
 
 ipv4_socket client_socket;
 
-client_list other_clients;
+list other_clients;
 
 shared_buffer info_buffer;
-
-void request_files_from_cient();
 
 void setup_client_socket() {
     if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &client_socket) < 0) {
@@ -61,7 +58,7 @@ void add_clients_to_list_and_buffer(request request) {
                 },
                 .pathname_with_version = {0}
         };
-        client_list_rpush(&other_clients, &info.tuple);
+        list_rpush(&other_clients, &info.tuple);
         shared_buffer_push(&info_buffer, &info);
     }
 }
@@ -88,7 +85,7 @@ bool request_files_from_client(client_file_info *info) {
             .ip = info->tuple.ip,
             .port_number = info->tuple.port_number};
 
-    if (!client_list_exists(&other_clients, &tuple)) {
+    if (!list_element_exists(&other_clients, &tuple)) {
         return false;
     }
 
@@ -111,7 +108,7 @@ bool request_files_from_client(client_file_info *info) {
                     .port_number = info->tuple.port_number
             }
     };
-    request = get_request(&client_to_connect);
+    request = ipv4_socket_get_request(&client_to_connect);
 
     for (byte *address = request.data + request.header.command_length;
          address < request.data + request.header.bytes;
@@ -121,6 +118,7 @@ bool request_files_from_client(client_file_info *info) {
     }
 
     free_request(&request);
+    close(client_to_connect.socket_fd);
 
     return true;
 }
@@ -141,7 +139,7 @@ void *worker_function(void *args) {
 
         }
     }
-    return NULL;
+    pthread_exit(NULL);
 }
 
 void create_threads(pthread_t *thread_pool) {
@@ -161,10 +159,12 @@ void wait_threads(pthread_t *thread_pool) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 13)
+    if (argc < 13) {
         usage();
+    }
     options = parse_command_line_arguments(argc, argv);
-    other_clients = client_list_create(CLIENT_LIST_MULTITHREADED);
+    other_clients = list_create(NULL, LIST_MULTITHREADED);
+    info_buffer = shared_buffer_create(options.buffer_size);
 
     //    setup_client_socket();
 
@@ -183,13 +183,12 @@ int main(int argc, char *argv[]) {
     }
     free_request(&request);
 
-    request = get_request(&server_socket);
+    request = ipv4_socket_get_request(&server_socket);
 
     if (str_n_equals(request.data, CLIENT_LIST, request.header.command_length)) {
         add_clients_to_list_and_buffer(request);
     }
 
-    info_buffer = shared_buffer_create(options.buffer_size);
     // we assume that the number of threads won't
     // be that large so we allocate memory on the stack
     pthread_t *thread_pool = alloca(options.worker_threads * sizeof(pthread_t));

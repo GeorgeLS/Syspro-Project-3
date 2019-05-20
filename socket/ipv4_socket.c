@@ -58,6 +58,8 @@ ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request) {
     const struct sockaddr *receiver_address = (const struct sockaddr *) &receiver->address;
     const size_t receiver_length = sizeof(receiver->address);
 
+    request.header = header_hton(request.header);
+
     if (sendto(receiver->socket_fd,
                &request.header,
                sizeof(request_header),
@@ -75,7 +77,7 @@ ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request) {
                   receiver_length);
 }
 
-request get_request(struct ipv4_socket *sender) {
+request ipv4_socket_get_request(struct ipv4_socket *sender) {
     request_header header;
     struct sockaddr *sender_address = (struct sockaddr *) &sender->address;
     socklen_t sender_length = sizeof(sender->address);

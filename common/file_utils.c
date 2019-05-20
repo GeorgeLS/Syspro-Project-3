@@ -24,8 +24,8 @@ entire_file read_entire_file_into_memory(const char *filename) {
     return file;
 }
 
-bool get_all_pathnames_and_versions(const char *restrict root_directory,
+void get_all_pathnames_and_versions(const char *restrict root_directory,
                                     versioned_pathname **pathnames_out,
                                     size_t *pathnames_n_out) {
-    return false;
+
 }

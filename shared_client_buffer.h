@@ -3,7 +3,9 @@
 
 #include <stdatomic.h>
 #include <stddef.h>
-#include "client_list.h"
+#include <pthread.h>
+#include "common/common_types.h"
+#include "client/client_data.h"
 
 #define MAX_PATHNAME_SIZE 128
 

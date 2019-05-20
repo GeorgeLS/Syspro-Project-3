@@ -37,6 +37,6 @@ __NON_NULL__(1) __WARN_UNUSED_RESULT__
 ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request);
 
 __NON_NULL__(1)
-request get_request(struct ipv4_socket *sender);
+request ipv4_socket_get_request(struct ipv4_socket *sender);
 
 #endif //EXERCISE_III_IPV4_SOCKET_H

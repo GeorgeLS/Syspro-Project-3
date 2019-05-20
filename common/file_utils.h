@@ -18,7 +18,7 @@ __NON_NULL__(1)
 int read_line_from_stdin(void *restrict stdin_buffer, size_t bytes);
 
 __NON_NULL__(1, 2, 3)
-bool get_all_pathnames_and_versions(const char *restrict root_directory,
+void get_all_pathnames_and_versions(const char *restrict root_directory,
                                     versioned_pathname **pathnames_out,
                                     size_t *pathnames_n_out);
 

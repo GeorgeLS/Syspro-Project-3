@@ -10,10 +10,11 @@
 #include "../common/report_utils.h"
 #include "../common/macros.h"
 #include "../common/string_utils.h"
+#include "../client/client_data.h"
 
 server_options options;
 ipv4_socket server_socket;
-client_list connected_clients;
+list connected_clients;
 
 static void setup_server_socket(void) {
     if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &server_socket) < 0) {
@@ -31,16 +32,16 @@ int main(int argc, char *argv[]) {
     if (argc < 3) usage();
     options = parse_command_line_arguments(argc, argv);
 
-    connected_clients = client_list_create(!CLIENT_LIST_MULTITHREADED);
+    connected_clients = list_create(client_tuple_equals, !LIST_MULTITHREADED);
     client_tuple tuple = {
             .ip = "192.168.0.1",
             .port_number = 2500
     };
-    client_list_rpush(&connected_clients, &tuple);
+    list_rpush(&connected_clients, &tuple);
 
     tuple.ip = "182.123.40.12";
     tuple.port_number = 6000;
-    client_list_rpush(&connected_clients, &tuple);
+    list_rpush(&connected_clients, &tuple);
 
     setup_server_socket();
 
@@ -55,7 +56,7 @@ int main(int argc, char *argv[]) {
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
 
     while (true) {
-        request new_request = get_request(&client_socket);
+        request new_request = ipv4_socket_get_request(&client_socket);
         if (new_request.data == NULL) continue;
         if (str_n_equals(new_request.data, GET_CLIENTS, new_request.header.command_length)) {
             request request = create_client_list_request(&connected_clients);

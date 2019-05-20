@@ -16,4 +16,6 @@ typedef unsigned char uchar;
 typedef s8 byte;
 typedef u8 ubyte;
 
+typedef int (*equality_comparer)(void *v1, void *v2);
+
 #endif //EXERCISE_III_COMMON_TYPES_H
