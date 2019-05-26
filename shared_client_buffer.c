@@ -1,6 +1,18 @@
 #include "shared_client_buffer.h"
 #include "common/macros.h"
 
+static size_t __INLINE__
+shared_buffer_next_right_index(shared_buffer *buffer) {
+    size_t index = (buffer->right + 1) % buffer->table_size;
+    return index;
+}
+
+static size_t __INLINE__
+shared_buffer_next_left_index(shared_buffer *buffer) {
+    size_t index = (buffer->left + 1) % buffer->table_size;
+    return index;
+}
+
 bool client_file_info_contains_file(client_file_info *info) {
     char zero_value[MAX_PATHNAME_SIZE] = {0};
     bool result = memcmp(info->pathname_with_version.pathname, zero_value, MAX_PATHNAME_SIZE) == 0;
@@ -17,12 +29,13 @@ shared_buffer *shared_buffer_create(size_t size) {
 }
 
 bool shared_buffer_full(shared_buffer *buffer) {
-    return ((buffer->left == (buffer->right + 1) ||
-             (buffer->left == 0 && buffer->right == buffer->table_size)));
+    bool result = shared_buffer_next_right_index(buffer) == buffer->left;
+    return result;
 }
 
 bool shared_buffer_emtpy(shared_buffer *buffer) {
-    return !shared_buffer_full(buffer);
+    bool result = buffer->left == buffer->right;
+    return result;
 }
 
 void shared_buffer_push(shared_buffer *buffer, client_file_info *info) {
@@ -32,7 +45,7 @@ void shared_buffer_push(shared_buffer *buffer, client_file_info *info) {
 
     client_file_info *element = &buffer->info_table[buffer->right];
     buffer->info_table[buffer->right] = *info;
-    buffer->right = (buffer->right + 1U) % buffer->table_size;
+    buffer->right = shared_buffer_next_right_index(buffer);
 
     __EXIT__:
     pthread_mutex_unlock(&buffer->mutex);
@@ -45,7 +58,7 @@ client_file_info *shared_buffer_pop(shared_buffer *buffer) {
     if (shared_buffer_emtpy(buffer)) goto __EXIT__;
 
     element = &buffer->info_table[buffer->left];
-    buffer->left = (buffer->left + 1U) % buffer->table_size;
+    buffer->left = shared_buffer_next_left_index(buffer);
 
     __EXIT__:
     pthread_mutex_unlock(&buffer->mutex);

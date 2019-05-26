@@ -168,8 +168,6 @@ void *worker_function(void *args) {
 
         ipv4_socket client_socket;
         if (!connect_to(&tuple, &client_socket)) {
-            report_error("Couldn't connect to the client with I.P: %s and Port: %" PRIu16,
-                         tuple.ip, tuple.port_number);
             continue;
         }
 
