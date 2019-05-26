@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     ipv4_socket client_socket = {0};
     int client_socket_fd;
-    if ((client_socket_fd = ipv4_socket_accept(&server_socket, &client_socket)) < 0) {
+    if ((ipv4_socket_accept(&server_socket, &client_socket)) < 0) {
         die("There was an error while accepting client connection");
     }
     report_response("Accepted connection!");
@@ -56,7 +56,6 @@ int main(int argc, char *argv[]) {
 
     while (true) {
         request new_request = ipv4_socket_get_request(&client_socket);
-        if (new_request.data == NULL) continue;
         if (str_n_equals(new_request.data, GET_CLIENTS, new_request.header.command_length)) {
             request request = create_client_list_request(&connected_clients);
             if (ipv4_socket_send_request(&client_socket, request) < 0) {

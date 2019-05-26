@@ -7,10 +7,12 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <zconf.h>
+#include <sys/ioctl.h>
 
 int ipv4_socket_create(u16 port_number, struct in_addr in_address, ipv4_socket *out_socket) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return -1;
+//    ioctl(fd, FIONBIO, &(int) {0});
     struct sockaddr_in new_socket;
     bzero(&new_socket, sizeof(struct sockaddr_in));
     new_socket.sin_family = AF_INET;
@@ -44,71 +46,48 @@ int ipv4_socket_accept(ipv4_socket *server_socket, ipv4_socket *client_socket) {
         client_socket = &placeholder;
     }
     socklen_t client_length = sizeof(client_socket->address);
-    int socket_fd = accept(server_socket->socket_fd, (struct sockaddr *) &client_socket->address, &client_length);
+    int socket_fd = accept(server_socket->socket_fd,
+                           (struct sockaddr *) &client_socket->address,
+                           &client_length);
     client_socket->socket_fd = socket_fd;
     return socket_fd;
 }
 
 int ipv4_socket_connect(ipv4_socket *socket) {
-    return connect(socket->socket_fd, (const struct sockaddr *) &socket->address,
+    return connect(socket->socket_fd,
+                   (const struct sockaddr *) &socket->address,
                    sizeof(socket->address));
 }
 
 ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request) {
-    const struct sockaddr *receiver_address = (const struct sockaddr *) &receiver->address;
-    const size_t receiver_length = sizeof(receiver->address);
-
+    u32 bytes = request.header.bytes;
     request.header = header_hton(request.header);
-
-    if (sendto(receiver->socket_fd,
-               &request.header,
-               sizeof(request_header),
-               0,
-               receiver_address,
-               receiver_length) < 0) {
+    if (write(receiver->socket_fd, &request.header, sizeof(request_header)) < 0) {
         return -1;
     }
-
-    return sendto(receiver->socket_fd,
-                  request.data,
-                  request.header.bytes,
-                  0,
-                  receiver_address,
-                  receiver_length);
+    if (write(receiver->socket_fd, request.data, bytes) < 0) {
+        return -1;
+    }
+    return 0;
 }
 
-request ipv4_socket_get_request(struct ipv4_socket *sender) {
-    request_header header;
-    struct sockaddr *sender_address = (struct sockaddr *) &sender->address;
-    socklen_t sender_length = sizeof(sender->address);
-
-    if (recvfrom(sender->socket_fd,
-                 &header,
-                 sizeof(request_header),
-                 0,
-                 sender_address,
-                 &sender_length) < 0) {
+request ipv4_socket_get_request(ipv4_socket *sender) {
+    request_header header = {0};
+    if (read(sender->socket_fd, &header, sizeof(request_header)) <= 0) {
         return (request) {0};
     }
-
     header = header_ntoh(header);
 
-    if (header.bytes == 0U) return (request) {0};
+    byte *data = __MALLOC__(header.bytes, byte);
 
-    request new_request = {
-            .data = __MALLOC__(header.bytes, byte),
-            .header = header
-    };
-
-    if (recvfrom(sender->socket_fd,
-                 new_request.data,
-                 new_request.header.bytes,
-                 0,
-                 sender_address,
-                 &sender_length) < 0) {
-
+    if (read(sender->socket_fd, data, header.bytes) <= 0) {
+        free(data);
         return (request) {0};
     }
 
-    return new_request;
+    request result = {
+            .data = data,
+            .header = header
+    };
+    return result;
 }

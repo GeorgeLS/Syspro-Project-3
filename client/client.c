@@ -1,11 +1,15 @@
-#include <stdlib.h>
+#define _GNU_SOURCE
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <netdb.h>
 #include <inttypes.h>
 #include <zconf.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "client_utils.h"
 #include "../socket/ipv4_socket.h"
 #include "../common/report_utils.h"
@@ -13,6 +17,7 @@
 #include "../common/string_utils.h"
 #include "../shared_client_buffer.h"
 #include "../common/macros.h"
+#include "../common/file_utils.h"
 
 client_options options;
 
@@ -31,7 +36,8 @@ void setup_client_socket() {
 ipv4_socket connect_to_server(void) {
     ipv4_socket server_socket;
 
-    if (ipv4_socket_create(options.server_port_number, (struct in_addr) {inet_addr(options.server_ip.address)},
+    if (ipv4_socket_create(options.server_port_number,
+                           (struct in_addr) {inet_addr(options.server_ip.address)},
                            &server_socket) < 0) {
         die("Couldn't create server socket");
     }
@@ -97,7 +103,7 @@ bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) 
          address < request.data + request.header.bytes;
          address += sizeof(versioned_pathname)) {
         client_info.pathname_with_version = *((versioned_pathname *) address);
-        shared_buffer_push(&info_buffer, &client_info);
+        shared_buffer_push(info_buffer, &client_info);
     }
 
     free_request(&request);
@@ -106,7 +112,38 @@ bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) 
     return true;
 }
 
-bool get_file_from_client(ipv4_socket *client_socket, client_file_info *info) {
+bool request_file_from_client(ipv4_socket *client_socket, client_file_info *info) {
+    char *full_pathname;
+    asprintf(&full_pathname, "%s_%" PRIu16 "/%s", info->tuple.ip, info->tuple.port_number,
+             info->pathname_with_version.pathname);
+    if (!file_exists(full_pathname)) {
+        info->pathname_with_version.version = 0U;
+        if (!create_directory(full_pathname, ACCESSPERMS)) {
+            report_error("Couldn't create new directory!");
+            return false;
+        }
+    }
+    request request = create_get_file_request(&info->pathname_with_version);
+    if (!ipv4_socket_send_request(client_socket, request)) {
+        report_error("Couldn't send GET_FILE request to client");
+        return false;
+    }
+    free_request(&request);
+    request = ipv4_socket_get_request(client_socket);
+    if (str_n_equals(request.data + request.header.command_length,
+                     FILE_UP_TO_DATE,
+                     request.header.bytes)) {
+        return true;
+    }
+
+    int fd;
+    if ((fd = open(full_pathname, O_CREAT | O_WRONLY)) < 0) {
+        report_error("Couldn't open file %s for write", full_pathname);
+        return false;
+    }
+    write(fd, request.data, request.header.bytes);
+    close(fd);
+    free_request(&request);
     return true;
 }
 
@@ -115,11 +152,10 @@ bool get_file_from_client(ipv4_socket *client_socket, client_file_info *info) {
 
 void *worker_function(void *args) {
     while (true) {
-        while (shared_buffer_emtpy(&info_buffer)) {
+        client_file_info *info;
+        while ((info = shared_buffer_pop(info_buffer)) == NULL) {
 //            sleep(2);
         }
-
-        client_file_info *info = shared_buffer_pop(&info_buffer);
 
         client_tuple tuple = {
                 .ip = info->tuple.ip,
@@ -138,31 +174,28 @@ void *worker_function(void *args) {
         }
 
         if (!client_file_info_contains_file(info)) {
-            if (!request_files_from_client(&client_socket, &tuple)) {
-                continue;
-            }
+            request_files_from_client(&client_socket, &tuple);
         } else {
-            if (!get_file_from_client(&client_socket, info)) {
-                continue;
-            }
+            request_file_from_client(&client_socket, info);
         }
+        close(client_socket.socket_fd);
     }
     pthread_exit(NULL);
 }
 
 #pragma clang diagnostic pop
 
-void create_threads(pthread_t *thread_pool) {
+void create_threads(pthread_t *threads) {
     for (size_t i = 0U; i != options.worker_threads; ++i) {
-        if (pthread_create(&thread_pool[i], NULL, worker_function, NULL)) {
+        if (pthread_create(&threads[i], NULL, worker_function, NULL)) {
             die("Couldn't create worker thread!");
         }
     }
 }
 
-void wait_threads(pthread_t *thread_pool) {
+void wait_threads(pthread_t *threads) {
     for (size_t i = 0U; i != options.worker_threads; ++i) {
-        if (pthread_join(thread_pool[i], NULL)) {
+        if (pthread_join(threads[i], NULL)) {
             die("Couldn't join threads");
         }
     }
@@ -201,11 +234,10 @@ int main(int argc, char *argv[]) {
 
     // we assume that the number of threads won't
     // be that large so we allocate memory on the stack
-    pthread_t *thread_pool = alloca(options.worker_threads * sizeof(pthread_t));
+    pthread_t *threads = alloca(options.worker_threads * sizeof(pthread_t));
 
-    create_threads(thread_pool);
-
-    wait_threads(thread_pool);
+    create_threads(threads);
+    wait_threads(threads);
 
     close(self_socket.socket_fd);
     return EXIT_SUCCESS;

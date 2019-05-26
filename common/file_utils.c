@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 #include "common_types.h"
 #include "file_utils.h"
 #include "macros.h"
@@ -76,4 +77,47 @@ void get_all_pathnames_and_versions(const char *restrict root_directory, list *p
     }
 
     closedir(dir);
+}
+
+bool file_exists(const char *restrict path) {
+    struct stat info = {0};
+    return stat(path, &info) == 0;
+}
+
+bool directory_exists(const char *restrict path) {
+    struct stat info = {0};
+    int res = stat(path, &info);
+    return res == 0 && ((info.st_mode & S_IFDIR) != 0);
+}
+
+bool create_directory(char *restrict path, mode_t permissions) {
+    bool result = true;
+    char *copy = strdup(path);
+    char *start = copy;
+    while (*copy) {
+        if (*copy == '/') {
+            *copy = '\0';
+            errno = 0;
+            int res = mkdir(start, permissions);
+            if (res == -1) {
+                if (errno == EEXIST) {
+                    // In this case we actually care if it's a directory.
+                    // If errno is EEXIST we know for a fact that the file/directory exists
+                    // So if the path points to a regular file that already exists we return false
+                    if (!directory_exists(start)) {
+                        result = false;
+                        goto __EXIT__;
+                    }
+                } else {
+                    result = false;
+                    goto __EXIT__;
+                }
+            }
+            *copy = '/';
+        }
+        ++copy;
+    }
+    __EXIT__:
+    free(start);
+    return result;
 }

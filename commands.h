@@ -10,6 +10,8 @@
 
 struct ipv4_socket;
 
+#define FILE_UP_TO_DATE "FILE_UP_TO_DATE"
+
 #define LOG_ON "LOG_ON"
 #define USER_ON "USER_ON"
 #define GET_CLIENTS "GET_CLIENTS"
