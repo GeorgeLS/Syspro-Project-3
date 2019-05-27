@@ -69,23 +69,6 @@ void add_clients_to_list_and_buffer(request request) {
     }
 }
 
-bool connect_to(client_tuple *tuple, ipv4_socket *socket_out) {
-    ipv4_socket socket;
-    u32 binary_ip = inet_addr(tuple->ip);
-    if (ipv4_socket_create(tuple->port_number, (struct in_addr) {binary_ip}, &socket) < 0) {
-        report_error("Couldn't create new socket to connect to client with"
-                     "I.P: %s and Port: %" PRIu16,
-                     tuple->ip, tuple->port_number);
-        return false;
-    }
-    if (ipv4_socket_connect(&socket) < 0) {
-        report_error("Couldn't connect to client with I.P: %s and Port: %" PRIu16,
-                     tuple->ip, tuple->port_number);
-        return false;
-    }
-    return true;
-}
-
 bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) {
     request request = create_get_file_list_request();
     if (ipv4_socket_send_request(client_socket, request) < 0) {
@@ -113,38 +96,52 @@ bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) 
 }
 
 bool request_file_from_client(ipv4_socket *client_socket, client_file_info *info) {
+    bool result = true;
+    request request = {0};
     char *full_pathname;
     asprintf(&full_pathname, "%s_%" PRIu16 "/%s", info->tuple.ip, info->tuple.port_number,
              info->pathname_with_version.pathname);
+
     if (!file_exists(full_pathname)) {
         info->pathname_with_version.version = 0U;
         if (!create_directory(full_pathname, ACCESSPERMS)) {
             report_error("Couldn't create new directory!");
-            return false;
+            result = false;
+            goto __ERROR__;
         }
     }
-    request request = create_get_file_request(&info->pathname_with_version);
+
+    request = create_get_file_request(&info->pathname_with_version);
     if (!ipv4_socket_send_request(client_socket, request)) {
         report_error("Couldn't send GET_FILE request to client");
-        return false;
+        result = false;
+        goto __ERROR__;
     }
     free_request(&request);
+
     request = ipv4_socket_get_request(client_socket);
-    if (str_n_equals(request.data + request.header.command_length,
-                     FILE_UP_TO_DATE,
-                     request.header.bytes)) {
-        return true;
+    if (!str_n_equals(request.data + request.header.command_length,
+                      FILE_UP_TO_DATE,
+                      request.header.bytes)) {
+        result = false;
+        goto __ERROR__;
     }
 
     int fd;
     if ((fd = open(full_pathname, O_CREAT | O_WRONLY)) < 0) {
         report_error("Couldn't open file %s for write", full_pathname);
-        return false;
+        result = false;
+        goto __ERROR__;
     }
+
     write(fd, request.data, request.header.bytes);
+
     close(fd);
+
+    __ERROR__:
+    free(full_pathname);
     free_request(&request);
-    return true;
+    return result;
 }
 
 #pragma clang diagnostic push
@@ -167,7 +164,7 @@ void *worker_function(void *args) {
         }
 
         ipv4_socket client_socket;
-        if (!connect_to(&tuple, &client_socket)) {
+        if (!ipv4_socket_create_and_connect(&tuple, &client_socket)) {
             continue;
         }
 

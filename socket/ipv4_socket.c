@@ -1,5 +1,7 @@
 #include "ipv4_socket.h"
 #include "../common/macros.h"
+#include "../common/report_utils.h"
+#include <inttypes.h>
 #include <strings.h>
 #include <stddef.h>
 #include <string.h>
@@ -7,12 +9,10 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <zconf.h>
-#include <sys/ioctl.h>
 
 int ipv4_socket_create(u16 port_number, struct in_addr in_address, ipv4_socket *out_socket) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return -1;
-//    ioctl(fd, FIONBIO, &(int) {0});
     struct sockaddr_in new_socket;
     bzero(&new_socket, sizeof(struct sockaddr_in));
     new_socket.sin_family = AF_INET;
@@ -57,6 +57,23 @@ int ipv4_socket_connect(ipv4_socket *socket) {
     return connect(socket->socket_fd,
                    (const struct sockaddr *) &socket->address,
                    sizeof(socket->address));
+}
+
+bool ipv4_socket_create_and_connect(client_tuple *tuple, ipv4_socket *socket_out) {
+    ipv4_socket socket;
+    u32 binary_ip = inet_addr(tuple->ip);
+    if (ipv4_socket_create(tuple->port_number, (struct in_addr) {binary_ip}, &socket) < 0) {
+        report_error("Couldn't create new socket to connect to client with"
+                     "I.P: %s and Port: %" PRIu16,
+                tuple->ip, tuple->port_number);
+        return false;
+    }
+    if (ipv4_socket_connect(&socket) < 0) {
+        report_error("Couldn't connect to client with I.P: %s and Port: %" PRIu16,
+                tuple->ip, tuple->port_number);
+        return false;
+    }
+    return true;
 }
 
 ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request) {

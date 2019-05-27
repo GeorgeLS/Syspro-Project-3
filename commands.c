@@ -120,7 +120,7 @@ request create_get_clients_request(void) {
 }
 
 
-request create_client_list_request(list *list) {
+request create_client_list_request(list *list, client_tuple *receiver) {
     request_header header = {
             .command_length = __COMMAND_LENGTH(CLIENT_LIST),
             .bytes = __COMMAND_LENGTH(CLIENT_LIST) + (list->size * IPV4_ADDRESS_SIZE)
@@ -135,14 +135,16 @@ request create_client_list_request(list *list) {
     list_node *curr = list->head;
     do {
         client_tuple *tuple = curr->data;
-        u32 binary_ip = inet_addr(tuple->ip);
-        u16 port_number = htons(tuple->port_number);
+        if (!client_tuple_equals(tuple, receiver)) {
+            u32 binary_ip = inet_addr(tuple->ip);
+            u16 port_number = htons(tuple->port_number);
 
-        memcpy(data, &binary_ip, sizeof(u32));
-        data += sizeof(u32);
+            memcpy(data, &binary_ip, sizeof(u32));
+            data += sizeof(u32);
 
-        memcpy(data, &port_number, sizeof(u16));
-        data += sizeof(u16);
+            memcpy(data, &port_number, sizeof(u16));
+            data += sizeof(u16);
+        }
 
         curr = curr->next;
     } while (curr != list->head);

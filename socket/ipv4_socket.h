@@ -33,6 +33,9 @@ int ipv4_socket_accept(ipv4_socket *server_socket, ipv4_socket *client_socket);
 __NON_NULL__(1) __WARN_UNUSED_RESULT__
 int ipv4_socket_connect(ipv4_socket *socket);
 
+__NON_NULL__(1, 2) __WARN_UNUSED_RESULT__
+bool ipv4_socket_create_and_connect(client_tuple *tuple, ipv4_socket *socket_out);
+
 __NON_NULL__(1) __WARN_UNUSED_RESULT__
 ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request);
 
