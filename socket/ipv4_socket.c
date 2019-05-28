@@ -13,12 +13,12 @@
 int ipv4_socket_create(u16 port_number, struct in_addr in_address, ipv4_socket *out_socket) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return -1;
-    struct sockaddr_in new_socket;
-    bzero(&new_socket, sizeof(struct sockaddr_in));
-    new_socket.sin_family = AF_INET;
-    new_socket.sin_addr.s_addr = in_address.s_addr;
-    new_socket.sin_port = htons(port_number);
-    out_socket->address = new_socket;
+    struct sockaddr_in address;
+    bzero(&address, sizeof(struct sockaddr_in));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = in_address.s_addr;
+    address.sin_port = htons(port_number);
+    out_socket->address = address;
     out_socket->socket_fd = fd;
     return 0;
 }

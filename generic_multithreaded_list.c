@@ -76,6 +76,25 @@ void list_lpush(list *list, void *data) {
     if (list->multithreaded) pthread_mutex_unlock(&list->mutex);
 }
 
+void list_remove(list *list, void *data) {
+    if (list->multithreaded) {
+        pthread_mutex_lock(&list->mutex);
+    }
+
+    list_node *curr = list->head;
+    do {
+        if (list->comparer(curr->data, data)) {
+            __list_remove(curr->previous, curr->next, curr);
+            break;
+        }
+        curr = curr->next;
+    } while (curr != list->head);
+
+    if (list->multithreaded) {
+        pthread_mutex_unlock(&list->mutex);
+    }
+}
+
 void *list_first_entry(list *list) {
     if (list->head == NULL) {
         return NULL;
@@ -113,4 +132,12 @@ bool list_element_exists(list *list, void *element) {
     if (list->multithreaded) pthread_mutex_unlock(&list->mutex);
 
     return exists;
+}
+
+bool list_element_exists_custom(list *list, void *element, equality_comparer comparer) {
+    equality_comparer list_comparer = list->comparer;
+    list->comparer = comparer;
+    bool result = list_element_exists(list, element);
+    list->comparer = list_comparer;
+    return result;
 }

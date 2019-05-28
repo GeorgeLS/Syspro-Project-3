@@ -31,6 +31,12 @@ void setup_client_socket() {
     if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &self_socket) < 0) {
         die("Could not create client address!");
     }
+    if (ipv4_socket_bind(&self_socket) < 0) {
+        die("Could not bind client socket!");
+    }
+    if (ipv4_socket_listen(&self_socket) < 0) {
+        die("Could not set client socket for listening!");
+    }
 }
 
 ipv4_socket connect_to_server(void) {
@@ -196,6 +202,18 @@ void wait_threads(pthread_t *threads) {
     }
 }
 
+//void reset_and_add_socket_file_descriptors_to_set(fd_set *set) {
+//    FD_ZERO(set);
+//    FD_SET(self_socket.socket_fd, set);
+//    list_node *curr = other_clients.head;
+//    if (curr != NULL) {
+//        do {
+//            FD_SET()
+//                    curr = curr->next;
+//        } while (curr != other_clients.head);
+//    }
+//}
+
 int main(int argc, char *argv[]) {
     if (argc < 13) {
         usage();
@@ -222,10 +240,8 @@ int main(int argc, char *argv[]) {
     free_request(&request);
 
     request = ipv4_socket_get_request(&server_socket);
-
-    if (str_n_equals(request.data, CLIENT_LIST, request.header.command_length)) {
-        add_clients_to_list_and_buffer(request);
-    }
+    add_clients_to_list_and_buffer(request);
+    free_request(&request);
 
     // we assume that the number of threads won't
     // be that large so we allocate memory on the stack

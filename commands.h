@@ -75,8 +75,10 @@ request create_user_off_request(u16 port_number, const char *restrict address);
 
 request create_get_clients_request(void);
 
+struct connected_client;
+
 __NON_NULL__(1, 2)
-request create_client_list_request(list *list, client_tuple *receiver);
+request create_client_list_request(list *list, struct connected_client *receiver);
 
 request create_get_file_list_request(void);
 

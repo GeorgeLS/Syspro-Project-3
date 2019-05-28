@@ -5,6 +5,7 @@
 #include "common/file_utils.h"
 #include "shared_client_buffer.h"
 #include "client/client_data.h"
+#include "server/server_data.h"
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -119,11 +120,10 @@ request create_get_clients_request(void) {
     };
 }
 
-
-request create_client_list_request(list *list, client_tuple *receiver) {
+request create_client_list_request(list *list, connected_client *receiver) {
     request_header header = {
             .command_length = __COMMAND_LENGTH(CLIENT_LIST),
-            .bytes = __COMMAND_LENGTH(CLIENT_LIST) + (list->size * IPV4_ADDRESS_SIZE)
+            .bytes = __COMMAND_LENGTH(CLIENT_LIST) + ((list->size - 1) * IPV4_ADDRESS_SIZE)
     };
 
     byte *data = __MALLOC__(header.bytes, byte);
@@ -134,10 +134,10 @@ request create_client_list_request(list *list, client_tuple *receiver) {
 
     list_node *curr = list->head;
     do {
-        client_tuple *tuple = curr->data;
-        if (!client_tuple_equals(tuple, receiver)) {
-            u32 binary_ip = inet_addr(tuple->ip);
-            u16 port_number = htons(tuple->port_number);
+        connected_client *connected_client = curr->data;
+        if (!connected_client_equals(connected_client, receiver)) {
+            u32 binary_ip = inet_addr(connected_client->tuple.ip);
+            u16 port_number = htons(connected_client->tuple.port_number);
 
             memcpy(data, &binary_ip, sizeof(u32));
             data += sizeof(u32);

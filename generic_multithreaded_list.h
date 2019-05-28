@@ -35,6 +35,9 @@ void list_rpush(list *list, void *data);
 __NON_NULL__(1, 2)
 void list_lpush(list *list, void *data);
 
+__NON_NULL__(1, 2)
+void list_remove(list *list, void *data);
+
 __NON_NULL__(1)
 void *list_first_entry(list *list);
 
@@ -43,5 +46,8 @@ void *list_last_entry(list *list);
 
 __NON_NULL__(1, 2)
 bool list_element_exists(list *list, void *element);
+
+__NON_NULL__(1, 2, 3)
+bool list_element_exists_custom(list *list, void *element, equality_comparer comparer);
 
 #endif //EXERCISE_III_GENERIC_MULTITHREADED_LIST_H
