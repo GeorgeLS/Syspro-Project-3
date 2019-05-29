@@ -1,5 +1,5 @@
-#ifndef EXERCISE_III_COMMANDS_H
-#define EXERCISE_III_COMMANDS_H
+#ifndef EXERCISE_III_REQUESTS_H
+#define EXERCISE_III_REQUESTS_H
 
 #include <stddef.h>
 #include <netinet/in.h>
@@ -7,10 +7,12 @@
 #include "common/common_types.h"
 #include "generic_multithreaded_list.h"
 #include "shared_client_buffer.h"
+#include "common/file_utils.h"
 
 struct ipv4_socket;
 
 #define FILE_UP_TO_DATE "FILE_UP_TO_DATE"
+#define FILE_NOT_FOUND "FILE_NOT_FOUND"
 
 #define LOG_ON "LOG_ON"
 #define USER_ON "USER_ON"
@@ -32,6 +34,8 @@ struct ipv4_socket;
 #define __GET_FILE_LENGTH 8
 #define __CLIENT_LIST_LENGTH 10
 #define __FILE_LIST_LENGTH 9
+#define __FILE_UP_TO_DATE_LENGTH 15
+#define __FILE_NOT_FOUND_LENGTH 14
 
 typedef struct request_header {
     u32 bytes;
@@ -88,4 +92,8 @@ request create_file_list_request(const char *restrict root_directory);
 __NON_NULL__(1)
 request create_get_file_request(versioned_pathname *vpathname);
 
-#endif //EXERCISE_III_COMMANDS_H
+request create_file_not_found_request(void);
+
+request create_file_up_to_date_request(void);
+
+#endif //EXERCISE_III_REQUESTS_H

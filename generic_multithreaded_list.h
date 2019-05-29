@@ -23,7 +23,6 @@ typedef struct list {
     bool multithreaded;
 } list;
 
-__NON_NULL__(1)
 list list_create(equality_comparer comparer, bool multithreaded);
 
 __NON_NULL__(1)

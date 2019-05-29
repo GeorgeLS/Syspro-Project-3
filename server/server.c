@@ -31,14 +31,21 @@ int main(int argc, char *argv[]) {
 
     connected_clients = list_create(connected_client_equals, !LIST_MULTITHREADED);
 
+
     setup_server_socket();
 
     fd_set sockets_set;
+    request_handler_arguments arguments = {
+            .connected_clients = &connected_clients,
+            .server_socket = &server_socket,
+            .set = &sockets_set,
+            .directory_name = NULL
+    };
     while (true) {
         reset_and_add_socket_descriptors_to_set(&sockets_set, server_socket.socket_fd, &connected_clients);
         bool available_for_read = select(FD_SETSIZE, &sockets_set, NULL, NULL, NULL) > 0;
         if (available_for_read) {
-            handle_incoming_requests(&sockets_set, &server_socket, &connected_clients);
+            handle_incoming_requests(&arguments);
         }
     }
     return EXIT_SUCCESS;

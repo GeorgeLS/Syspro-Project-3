@@ -1,4 +1,4 @@
-#include "commands.h"
+#include "requests.h"
 #include "common/macros.h"
 #include "socket/ipv4_socket.h"
 #include "common/file_utils.h"
@@ -8,6 +8,7 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <bits/types/FILE.h>
 
 void free_request(request *request) {
     free(request->data);
@@ -217,4 +218,38 @@ request create_get_file_request(versioned_pathname *vpathname) {
             .header = header,
             .data = base_address
     };
+}
+
+request create_file_not_found_request(void) {
+    request_header header = {
+            .bytes = __COMMAND_LENGTH(FILE_NOT_FOUND),
+            .command_length = __COMMAND_LENGTH(FILE_NOT_FOUND)
+    };
+
+    byte *data = __MALLOC__(header.bytes, byte);
+    memcpy(data, FILE_NOT_FOUND, header.command_length);
+
+    request result = {
+            .data = data,
+            .header = header
+    };
+
+    return result;
+}
+
+request create_file_up_to_date_request(void) {
+    request_header header = {
+            .bytes = __COMMAND_LENGTH(FILE_UP_TO_DATE),
+            .command_length = __COMMAND_LENGTH(FILE_UP_TO_DATE)
+    };
+
+    byte *data = __MALLOC__(header.bytes, byte);
+    memcpy(data, FILE_UP_TO_DATE, header.command_length);
+
+    request result = {
+            .data = data,
+            .header = header
+    };
+
+    return result;
 }

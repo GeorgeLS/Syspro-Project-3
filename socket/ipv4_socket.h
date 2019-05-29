@@ -5,7 +5,7 @@
 #include <netdb.h>
 #include "../common/common_types.h"
 #include "../common/attributes.h"
-#include "../commands.h"
+#include "../requests.h"
 
 #define IPV4_SOCKET_BACKLOG_SIZE 5
 #define IPV4_ANY_ADDRESS (struct in_addr) {htonl(INADDR_ANY)}

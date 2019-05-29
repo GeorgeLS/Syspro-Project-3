@@ -13,7 +13,7 @@
 #include "client_utils.h"
 #include "../socket/ipv4_socket.h"
 #include "../common/report_utils.h"
-#include "../commands.h"
+#include "../requests.h"
 #include "../common/string_utils.h"
 #include "../shared_client_buffer.h"
 #include "../common/macros.h"
@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
     connected_clients = list_create(connected_client_equals, LIST_MULTITHREADED);
     info_buffer = shared_buffer_create(options.buffer_size);
 
-    //    setup_client_socket();
+    setup_client_socket();
 
     server_socket = connect_to_server();
     get_other_clients_from_server();
@@ -242,11 +242,17 @@ int main(int argc, char *argv[]) {
     create_threads();
 
     fd_set sockets_set;
+    request_handler_arguments arguments = {
+            .connected_clients = &connected_clients,
+            .server_socket = &server_socket,
+            .set = &sockets_set,
+            .directory_name = options.directory_name
+    };
     while (true) {
-        reset_and_add_socket_descriptors_to_set(&sockets_set, server_socket.socket_fd, &connected_clients);
+        reset_and_add_socket_descriptors_to_set(&sockets_set, self_socket.socket_fd, &connected_clients);
         bool available_for_read = select(FD_SETSIZE, &sockets_set, NULL, NULL, NULL) > 0;
         if (available_for_read) {
-            handle_incoming_requests(&sockets_set, &server_socket, &connected_clients);
+            handle_incoming_requests(&arguments);
         }
     }
 
