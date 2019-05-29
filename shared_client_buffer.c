@@ -19,12 +19,14 @@ bool client_file_info_contains_file(client_file_info *info) {
     return result;
 }
 
-shared_buffer *shared_buffer_create(size_t size) {
-    shared_buffer *buffer = __MALLOC__(1, shared_buffer);
-    buffer->info_table = __MALLOC__(size, client_file_info);
-    buffer->table_size = size;
-    buffer->left = buffer->right = 0U;
-    pthread_mutex_init(&buffer->mutex, NULL);
+shared_buffer shared_buffer_create(size_t size) {
+    shared_buffer buffer = {
+            .info_table = __MALLOC__(size, client_file_info),
+            .table_size = size,
+            .left = 0U,
+            .right = 0U
+    };
+    pthread_mutex_init(&buffer.mutex, NULL);
     return buffer;
 }
 

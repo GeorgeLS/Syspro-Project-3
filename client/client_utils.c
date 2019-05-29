@@ -71,7 +71,7 @@ client_options parse_command_line_arguments(int argc, char *argv[]) {
             }
 
             case 'i':
-                ipv4_initialize(&options.server_ip, optarg);
+                options.server_ip = strdup(optarg);
                 break;
 
             case 'h':

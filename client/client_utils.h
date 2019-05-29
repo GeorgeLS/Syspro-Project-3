@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <getopt.h>
-#include "../ipv4.h"
 #include "../socket/ipv4_socket.h"
 
 static struct option options_spec[] = {
@@ -17,7 +16,7 @@ static struct option options_spec[] = {
 };
 
 typedef struct client_options {
-    ipv4 server_ip;
+    char *server_ip;
     char *directory_name;
     size_t buffer_size;
     u16 port_number;

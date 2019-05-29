@@ -23,14 +23,6 @@ int ipv4_socket_create(u16 port_number, struct in_addr in_address, ipv4_socket *
     return 0;
 }
 
-void ipv4_socket_initialize_from_address(ipv4_socket *socket, u16 port_number, const char *address) {
-    struct sockaddr_in *socket_address = &socket->address;
-    socket_address->sin_port = htons(port_number);
-    socket_address->sin_family = AF_INET;
-    socket_address->sin_addr.s_addr = inet_addr(address);
-    socket->socket_fd = -1;
-}
-
 int ipv4_socket_bind(ipv4_socket *socket) {
     return bind(socket->socket_fd, (struct sockaddr *) &socket->address, sizeof(socket->address));
 }

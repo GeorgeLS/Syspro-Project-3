@@ -1,5 +1,7 @@
-#include "server_data.h"
-#include "../common/macros.h"
+#include "common_data.h"
+#include "macros.h"
+#include "../client/client_data.h"
+#include "../socket/ipv4_socket.h"
 
 int connected_client_equals(void *v1, void *v2) {
     connected_client *c1 = v1;
@@ -10,7 +12,7 @@ int connected_client_equals(void *v1, void *v2) {
 
 connected_client *connected_client_create(client_tuple *tuple, ipv4_socket *socket) {
     connected_client *new_client = __MALLOC__(1, connected_client);
-    new_client->socket = socket;
+    new_client->socket = *socket;
     new_client->tuple = *tuple;
     return new_client;
 }

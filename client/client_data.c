@@ -3,7 +3,7 @@
 #include <arpa/inet.h>
 #include "client_data.h"
 #include "../common/string_utils.h"
-#include "../ipv4.h"
+#include "../socket/ipv4_socket.h"
 
 int client_tuple_equals(void *tuple1, void *tuple2) {
     client_tuple *t1 = tuple1;
@@ -13,7 +13,7 @@ int client_tuple_equals(void *tuple1, void *tuple2) {
     return result;
 }
 
-client_tuple client_tuple_from_ntoh_bytes(byte *restrict data, u32 bytes) {
+client_tuple client_tuple_from_ntoh_bytes(byte *restrict data) {
     client_tuple tuple;
     u32 binary_ip = *(u32 *) data;
     char ip[MAX_IPV4_LENGTH] = {0};

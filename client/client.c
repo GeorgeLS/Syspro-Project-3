@@ -18,14 +18,18 @@
 #include "../shared_client_buffer.h"
 #include "../common/macros.h"
 #include "../common/file_utils.h"
+#include "../common/common_data.h"
+#include "../common/common_utils.h"
 
 client_options options;
 
 ipv4_socket self_socket;
+ipv4_socket server_socket;
 
-list other_clients;
+list connected_clients;
+shared_buffer info_buffer;
 
-shared_buffer *info_buffer;
+pthread_t *threads;
 
 void setup_client_socket() {
     if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &self_socket) < 0) {
@@ -40,10 +44,8 @@ void setup_client_socket() {
 }
 
 ipv4_socket connect_to_server(void) {
-    ipv4_socket server_socket;
-
     if (ipv4_socket_create(options.server_port_number,
-                           (struct in_addr) {inet_addr(options.server_ip.address)},
+                           (struct in_addr) {inet_addr(options.server_ip)},
                            &server_socket) < 0) {
         die("Couldn't create server socket");
     }
@@ -52,28 +54,10 @@ ipv4_socket connect_to_server(void) {
         die("Couldn't connect to the server!");
     }
 
-    report_response("Connected to server %s with port %" PRIu16, options.server_ip.address, options.server_port_number);
+    report_response("Connected to server %s with port %" PRIu16, options.server_ip, options.server_port_number);
     return server_socket;
 }
 
-void add_clients_to_list_and_buffer(request request) {
-    for (byte *address = request.data + request.header.command_length;
-         address < request.data + request.header.bytes;
-         address += IPV4_ADDRESS_SIZE) {
-        u32 binary_ip = *((u32 *) address);
-        char ip[MAX_IPV4_LENGTH];
-        inet_ntop(AF_INET, &binary_ip, ip, MAX_IPV4_LENGTH);
-        u16 port_number = ntohs(*((u16 *) (address + sizeof(u32))));
-        client_file_info *info = __MALLOC__(1, client_file_info);
-        info->tuple = (client_tuple) {
-                .ip = strdup(ip),
-                .port_number = port_number
-        };
-        info->pathname_with_version = (versioned_pathname) {0};
-        list_rpush(&other_clients, &info->tuple);
-        shared_buffer_push(info_buffer, info);
-    }
-}
 
 bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) {
     request request = create_get_file_list_request();
@@ -92,7 +76,7 @@ bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) 
          address < request.data + request.header.bytes;
          address += sizeof(versioned_pathname)) {
         client_info.pathname_with_version = *((versioned_pathname *) address);
-        shared_buffer_push(info_buffer, &client_info);
+        shared_buffer_push(&info_buffer, &client_info);
     }
 
     free_request(&request);
@@ -156,7 +140,7 @@ bool request_file_from_client(ipv4_socket *client_socket, client_file_info *info
 void *worker_function(void *args) {
     while (true) {
         client_file_info *info;
-        while ((info = shared_buffer_pop(info_buffer)) == NULL) {
+        while ((info = shared_buffer_pop(&info_buffer)) == NULL) {
 //            sleep(2);
         }
 
@@ -165,7 +149,7 @@ void *worker_function(void *args) {
                 .port_number = info->tuple.port_number
         };
 
-        if (!list_element_exists(&other_clients, &tuple)) {
+        if (!list_element_exists(&connected_clients, &tuple)) {
             continue;
         }
 
@@ -186,7 +170,7 @@ void *worker_function(void *args) {
 
 #pragma clang diagnostic pop
 
-void create_threads(pthread_t *threads) {
+void create_threads(void) {
     for (size_t i = 0U; i != options.worker_threads; ++i) {
         if (pthread_create(&threads[i], NULL, worker_function, NULL)) {
             die("Couldn't create worker thread!");
@@ -194,7 +178,7 @@ void create_threads(pthread_t *threads) {
     }
 }
 
-void wait_threads(pthread_t *threads) {
+void wait_threads(void) {
     for (size_t i = 0U; i != options.worker_threads; ++i) {
         if (pthread_join(threads[i], NULL)) {
             die("Couldn't join threads");
@@ -202,32 +186,25 @@ void wait_threads(pthread_t *threads) {
     }
 }
 
-//void reset_and_add_socket_file_descriptors_to_set(fd_set *set) {
-//    FD_ZERO(set);
-//    FD_SET(self_socket.socket_fd, set);
-//    list_node *curr = other_clients.head;
-//    if (curr != NULL) {
-//        do {
-//            FD_SET()
-//                    curr = curr->next;
-//        } while (curr != other_clients.head);
-//    }
-//}
+void add_clients_to_list_and_buffer(request request) {
+    for (byte *address = request.data + request.header.command_length;
+         address < request.data + request.header.bytes;
+         address += IPV4_ADDRESS_SIZE) {
 
-int main(int argc, char *argv[]) {
-    if (argc < 13) {
-        usage();
+        client_file_info *info = __MALLOC__(1, client_file_info);
+        info->tuple = client_tuple_from_ntoh_bytes(address);
+        info->pathname_with_version = (versioned_pathname) {0};
+
+        connected_client *client = connected_client_create(&info->tuple, &(ipv4_socket) {.socket_fd = -1});
+
+        list_rpush(&connected_clients, client);
+        shared_buffer_push(&info_buffer, info);
     }
-    options = parse_command_line_arguments(argc, argv);
-    other_clients = list_create(client_tuple_equals, LIST_MULTITHREADED);
-    info_buffer = shared_buffer_create(options.buffer_size);
+}
 
-    //    setup_client_socket();
-
-    ipv4_socket server_socket = connect_to_server();
-
+void get_other_clients_from_server(void) {
     request request;
-    request = create_log_on_request(options.port_number, options.server_ip.address);
+    request = create_log_on_request(options.port_number, options.server_ip);
     if (ipv4_socket_send_request(&server_socket, request) < 0) {
         report_error("Couldn't send LOG_ON request to server!");
     }
@@ -242,14 +219,39 @@ int main(int argc, char *argv[]) {
     request = ipv4_socket_get_request(&server_socket);
     add_clients_to_list_and_buffer(request);
     free_request(&request);
+}
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
+
+int main(int argc, char *argv[]) {
+    if (argc < 13) usage();
+    options = parse_command_line_arguments(argc, argv);
+    connected_clients = list_create(connected_client_equals, LIST_MULTITHREADED);
+    info_buffer = shared_buffer_create(options.buffer_size);
+
+    //    setup_client_socket();
+
+    server_socket = connect_to_server();
+    get_other_clients_from_server();
 
     // we assume that the number of threads won't
     // be that large so we allocate memory on the stack
-    pthread_t *threads = alloca(options.worker_threads * sizeof(pthread_t));
+    threads = __MALLOC__(options.worker_threads, pthread_t);
 
-    create_threads(threads);
-    wait_threads(threads);
+    create_threads();
 
-    close(self_socket.socket_fd);
+    fd_set sockets_set;
+    while (true) {
+        reset_and_add_socket_descriptors_to_set(&sockets_set, server_socket.socket_fd, &connected_clients);
+        bool available_for_read = select(FD_SETSIZE, &sockets_set, NULL, NULL, NULL) > 0;
+        if (available_for_read) {
+            handle_incoming_requests(&sockets_set, &server_socket, &connected_clients);
+        }
+    }
+
+    wait_threads();
     return EXIT_SUCCESS;
 }
+
+#pragma clang diagnostic pop

@@ -1,11 +1,10 @@
 #include "commands.h"
 #include "common/macros.h"
-#include "ipv4.h"
 #include "socket/ipv4_socket.h"
 #include "common/file_utils.h"
 #include "shared_client_buffer.h"
 #include "client/client_data.h"
-#include "server/server_data.h"
+#include "common/common_data.h"
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
