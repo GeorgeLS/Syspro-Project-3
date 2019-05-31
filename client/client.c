@@ -10,6 +10,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 #include "client_utils.h"
 #include "../socket/ipv4_socket.h"
 #include "../common/report_utils.h"
@@ -30,6 +31,28 @@ list connected_clients;
 shared_buffer info_buffer;
 
 pthread_t *threads;
+
+void log_out(int signum) {
+    request log_off_request = create_log_off_request();
+    if (!ipv4_socket_create_and_connect(&server_as_client.tuple, &server_as_client.socket)) {
+        report_error("Couldn't send log off request to server");
+    }
+    free_request(&log_off_request);
+
+    for (size_t i = 0U; i != options.worker_threads; ++i) {
+        pthread_cancel(threads[i]);
+    }
+    printf("Exiting...\n");
+    exit(EXIT_SUCCESS);
+}
+
+void register_handlers(void) {
+    struct sigaction action = {0};
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = log_out;
+    sigaction(SIGQUIT, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
+}
 
 void setup_client_socket() {
     if (ipv4_socket_create(options.port_number, IPV4_ANY_ADDRESS, &self_socket) < 0) {
@@ -276,6 +299,7 @@ int main(int argc, char *argv[]) {
     threads = __MALLOC__(options.worker_threads, pthread_t);
 
     create_threads();
+    register_handlers();
 
     fd_set sockets_set;
     request_handler_arguments arguments = {
