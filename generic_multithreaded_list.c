@@ -141,3 +141,25 @@ bool list_element_exists_custom(list *list, void *element, equality_comparer com
     list->comparer = list_comparer;
     return result;
 }
+
+void *list_find_element(list *list, void *key) {
+    void *result = NULL;
+    if (list->multithreaded) {
+        pthread_mutex_lock(&list->mutex);
+    }
+
+    list_node *curr = list->head;
+    if (curr == NULL) return NULL;
+    do {
+        if (list->comparer(curr->data, key)) {
+            result = curr->data;
+            break;
+        }
+        curr = curr->next;
+    } while (curr != list->head);
+
+    if (list->multithreaded) {
+        pthread_mutex_unlock(&list->mutex);
+    }
+    return result;
+}

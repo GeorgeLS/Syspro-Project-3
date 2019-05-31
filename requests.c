@@ -180,6 +180,7 @@ request create_file_list_request(const char *restrict root_directory) {
     };
 
     byte *data = __MALLOC__(header.bytes, byte);
+    memset(data, '\0', header.bytes);
     byte *base_address = data;
 
     memcpy(data, FILE_LIST, header.command_length);
@@ -192,6 +193,7 @@ request create_file_list_request(const char *restrict root_directory) {
         data += MAX_PATHNAME_SIZE;
         memcpy(data, &vpathname->version, sizeof(u64));
         data += sizeof(u64);
+        curr = curr->next;
     } while (curr != versioned_pathnames.head);
 
     return (request) {
@@ -252,4 +254,25 @@ request create_file_up_to_date_request(void) {
     };
 
     return result;
+}
+
+request create_file_request(entire_file file, u64 version) {
+    request_header header = {
+            .command_length = 0,
+            .bytes = file.size + sizeof(u64) + sizeof(size_t)
+    };
+
+    byte *data = __MALLOC__(header.bytes, byte);
+    byte *base_address = data;
+
+    memcpy(data, &version, sizeof(u64));
+    data += sizeof(u64);
+    memcpy(data, &file.size, sizeof(size_t));
+    data += sizeof(size_t);
+    memcpy(data, file.data, file.size);
+
+    return (request) {
+            .data = base_address,
+            .header = header
+    };
 }

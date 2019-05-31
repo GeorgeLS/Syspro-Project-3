@@ -24,7 +24,7 @@
 client_options options;
 
 ipv4_socket self_socket;
-ipv4_socket server_socket;
+connected_client server_as_client;
 
 list connected_clients;
 shared_buffer info_buffer;
@@ -43,34 +43,51 @@ void setup_client_socket() {
     }
 }
 
-ipv4_socket connect_to_server(void) {
+void connect_to_server(void) {
+    server_as_client.tuple = (client_tuple) {
+            .ip = options.server_ip,
+            .port_number = options.server_port_number
+    };
+
     if (ipv4_socket_create(options.server_port_number,
                            (struct in_addr) {inet_addr(options.server_ip)},
-                           &server_socket) < 0) {
+                           &server_as_client.socket) < 0) {
         die("Couldn't create server socket");
     }
 
-    if (ipv4_socket_connect(&server_socket) < 0) {
+    if (ipv4_socket_connect(&server_as_client.socket) < 0) {
         die("Couldn't connect to the server!");
     }
 
     report_response("Connected to server %s with port %" PRIu16, options.server_ip, options.server_port_number);
-    return server_socket;
 }
 
-
-bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) {
+bool request_files_from_client(connected_client *client) {
+    bool result = true;
     request request = create_get_file_list_request();
-    if (ipv4_socket_send_request(client_socket, request) < 0) {
+    if (!ipv4_socket_create_and_connect(&client->tuple, &client->socket)) {
+        report_error("Couldn't connect to client");
+        result = false;
+        goto __ERROR__;
+    }
+    fprintf(stderr, "[REQUEST_FILES] Connected to client with IP: %s and port: %" PRIu16
+                    " and socket descriptor is %d\n",
+            client->tuple.ip, client->tuple.port_number,
+            client->socket.socket_fd);
+
+    if (ipv4_socket_send_request(&client->socket, request) < 0) {
         report_error("Couldn't send GET_FILE_LIST request to client with"
                      "I.P: %s and Port: %" PRIu16,
-                     tuple->ip, tuple->port_number);
+                     client->tuple.ip, client->tuple.port_number);
+        result = false;
+        goto __ERROR__;
     }
+
     free_request(&request);
     client_file_info client_info = {
-            .tuple = *tuple
+            .tuple = client->tuple
     };
-    request = ipv4_socket_get_request(client_socket);
+    request = ipv4_socket_get_request(&client->socket);
 
     for (byte *address = request.data + request.header.command_length;
          address < request.data + request.header.bytes;
@@ -79,13 +96,15 @@ bool request_files_from_client(ipv4_socket *client_socket, client_tuple *tuple) 
         shared_buffer_push(&info_buffer, &client_info);
     }
 
+    __ERROR__:
     free_request(&request);
-    close(client_socket->socket_fd);
+    close(client->socket.socket_fd);
+    client->socket.socket_fd = -1;
 
-    return true;
+    return result;
 }
 
-bool request_file_from_client(ipv4_socket *client_socket, client_file_info *info) {
+bool request_file_from_client(connected_client *client, client_file_info *info) {
     bool result = true;
     request request = {0};
     char *full_pathname;
@@ -102,32 +121,52 @@ bool request_file_from_client(ipv4_socket *client_socket, client_file_info *info
     }
 
     request = create_get_file_request(&info->pathname_with_version);
-    if (!ipv4_socket_send_request(client_socket, request)) {
+    if (!ipv4_socket_create_and_connect(&client->tuple, &client->socket)) {
+        report_error("Couldn't connect to client");
+        result = false;
+        goto __ERROR__;
+    }
+
+    fprintf(stderr, "[REQUEST_FILE] Connected to client with IP: %s and port: %" PRIu16
+                    " and socket descriptor is %d\n",
+            client->tuple.ip, client->tuple.port_number,
+            client->socket.socket_fd);
+
+
+    if (ipv4_socket_send_request(&client->socket, request) < 0) {
         report_error("Couldn't send GET_FILE request to client");
         result = false;
         goto __ERROR__;
     }
     free_request(&request);
 
-    request = ipv4_socket_get_request(client_socket);
-    if (!str_n_equals(request.data + request.header.command_length,
-                      FILE_UP_TO_DATE,
-                      request.header.bytes)) {
+    request = ipv4_socket_get_request(&client->socket);
+    if (str_n_equals(request.data, FILE_NOT_FOUND, request.header.command_length)) {
         result = false;
+        report_response("File not found!");
         goto __ERROR__;
+    } else if (str_n_equals(request.data, FILE_UP_TO_DATE, request.header.command_length)) {
+        result = true;
+        report_response("File is up to date");
+        goto __ERROR__; // That's not considered an error, we just exit
     }
 
     int fd;
-    if ((fd = open(full_pathname, O_CREAT | O_WRONLY)) < 0) {
+    if ((fd = open(full_pathname, O_CREAT | O_WRONLY, ACCESSPERMS)) < 0) {
         report_error("Couldn't open file %s for write", full_pathname);
         result = false;
         goto __ERROR__;
     }
 
-    write(fd, request.data, request.header.bytes);
+    size_t file_size = *((size_t *) (request.data + sizeof(u64)));
+    char *file_data = request.data + sizeof(u64) + sizeof(size_t);
+
+    write(fd, file_data, file_size);
 
     close(fd);
 
+    close(client->socket.socket_fd);
+    client->socket.socket_fd = -1;
     __ERROR__:
     free(full_pathname);
     free_request(&request);
@@ -139,31 +178,27 @@ bool request_file_from_client(ipv4_socket *client_socket, client_file_info *info
 
 void *worker_function(void *args) {
     while (true) {
-        client_file_info *info;
-        while ((info = shared_buffer_pop(&info_buffer)) == NULL) {
-//            sleep(2);
-        }
+        client_file_info *info = shared_buffer_pop(&info_buffer);
 
         client_tuple tuple = {
                 .ip = info->tuple.ip,
                 .port_number = info->tuple.port_number
         };
+        connected_client key = {
+                .tuple = tuple
+        };
 
-        if (!list_element_exists(&connected_clients, &tuple)) {
-            continue;
-        }
+        connected_client *client = list_find_element(&connected_clients, &key);
 
-        ipv4_socket client_socket;
-        if (!ipv4_socket_create_and_connect(&tuple, &client_socket)) {
+        if (client == NULL) {
             continue;
         }
 
         if (!client_file_info_contains_file(info)) {
-            request_files_from_client(&client_socket, &tuple);
+            request_files_from_client(client);
         } else {
-            request_file_from_client(&client_socket, info);
+            request_file_from_client(client, info);
         }
-        close(client_socket.socket_fd);
     }
     pthread_exit(NULL);
 }
@@ -204,21 +239,24 @@ void add_clients_to_list_and_buffer(request request) {
 
 void get_other_clients_from_server(void) {
     request request;
-    request = create_log_on_request(options.port_number, options.server_ip);
-    if (ipv4_socket_send_request(&server_socket, request) < 0) {
+    char *ip = get_self_ip_address();
+    request = create_log_on_request(options.port_number, ip);
+    if (ipv4_socket_send_request(&server_as_client.socket, request) < 0) {
         report_error("Couldn't send LOG_ON request to server!");
     }
     free_request(&request);
 
     request = create_get_clients_request();
-    if (ipv4_socket_send_request(&server_socket, request) < 0) {
+    if (ipv4_socket_send_request(&server_as_client.socket, request) < 0) {
         report_error("Couldn't send GET_CLIENTS request to server");
     }
     free_request(&request);
 
-    request = ipv4_socket_get_request(&server_socket);
+    request = ipv4_socket_get_request(&server_as_client.socket);
     add_clients_to_list_and_buffer(request);
     free_request(&request);
+    close(server_as_client.socket.socket_fd);
+    server_as_client.socket.socket_fd = -1;
 }
 
 #pragma clang diagnostic push
@@ -232,11 +270,9 @@ int main(int argc, char *argv[]) {
 
     setup_client_socket();
 
-    server_socket = connect_to_server();
+    connect_to_server();
     get_other_clients_from_server();
 
-    // we assume that the number of threads won't
-    // be that large so we allocate memory on the stack
     threads = __MALLOC__(options.worker_threads, pthread_t);
 
     create_threads();
@@ -244,10 +280,12 @@ int main(int argc, char *argv[]) {
     fd_set sockets_set;
     request_handler_arguments arguments = {
             .connected_clients = &connected_clients,
-            .server_socket = &server_socket,
+            .server_socket = &self_socket,
             .set = &sockets_set,
-            .directory_name = options.directory_name
+            .directory_name = options.directory_name,
+            .shared_buffer = &info_buffer
     };
+
     while (true) {
         reset_and_add_socket_descriptors_to_set(&sockets_set, self_socket.socket_fd, &connected_clients);
         bool available_for_read = select(FD_SETSIZE, &sockets_set, NULL, NULL, NULL) > 0;

@@ -31,7 +31,6 @@ int main(int argc, char *argv[]) {
 
     connected_clients = list_create(connected_client_equals, !LIST_MULTITHREADED);
 
-
     setup_server_socket();
 
     fd_set sockets_set;
@@ -39,8 +38,10 @@ int main(int argc, char *argv[]) {
             .connected_clients = &connected_clients,
             .server_socket = &server_socket,
             .set = &sockets_set,
-            .directory_name = NULL
+            .directory_name = NULL,
+            .shared_buffer = NULL
     };
+
     while (true) {
         reset_and_add_socket_descriptors_to_set(&sockets_set, server_socket.socket_fd, &connected_clients);
         bool available_for_read = select(FD_SETSIZE, &sockets_set, NULL, NULL, NULL) > 0;

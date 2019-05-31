@@ -21,6 +21,7 @@ typedef struct client_file_info {
 
 typedef struct shared_buffer {
     client_file_info *info_table;
+    pthread_cond_t condition;
     pthread_mutex_t mutex;
     size_t table_size;
     size_t left;

@@ -1,6 +1,7 @@
 #ifndef EXERCISE_III_FILE_UTILS_H
 #define EXERCISE_III_FILE_UTILS_H
 
+#include <ustat.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include "attributes.h"

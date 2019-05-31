@@ -49,4 +49,7 @@ bool list_element_exists(list *list, void *element);
 __NON_NULL__(1, 2, 3)
 bool list_element_exists_custom(list *list, void *element, equality_comparer comparer);
 
+__NON_NULL__(1, 2)
+void *list_find_element(list *list, void *key);
+
 #endif //EXERCISE_III_GENERIC_MULTITHREADED_LIST_H

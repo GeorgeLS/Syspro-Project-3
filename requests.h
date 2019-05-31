@@ -32,7 +32,7 @@ struct ipv4_socket;
 #define __GET_CLIENTS_LENGTH 11
 #define __GET_FILE_LIST_LENGTH 13
 #define __GET_FILE_LENGTH 8
-#define __CLIENT_LIST_LENGTH 10
+#define __CLIENT_LIST_LENGTH 11
 #define __FILE_LIST_LENGTH 9
 #define __FILE_UP_TO_DATE_LENGTH 15
 #define __FILE_NOT_FOUND_LENGTH 14
@@ -95,5 +95,8 @@ request create_get_file_request(versioned_pathname *vpathname);
 request create_file_not_found_request(void);
 
 request create_file_up_to_date_request(void);
+
+request create_file_request(entire_file file, u64 version);
+
 
 #endif //EXERCISE_III_REQUESTS_H

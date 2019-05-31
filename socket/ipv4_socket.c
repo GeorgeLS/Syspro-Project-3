@@ -13,6 +13,7 @@
 int ipv4_socket_create(u16 port_number, struct in_addr in_address, ipv4_socket *out_socket) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return -1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
     struct sockaddr_in address;
     bzero(&address, sizeof(struct sockaddr_in));
     address.sin_family = AF_INET;
@@ -52,17 +53,16 @@ int ipv4_socket_connect(ipv4_socket *socket) {
 }
 
 bool ipv4_socket_create_and_connect(client_tuple *tuple, ipv4_socket *socket_out) {
-    ipv4_socket socket;
     u32 binary_ip = inet_addr(tuple->ip);
-    if (ipv4_socket_create(tuple->port_number, (struct in_addr) {binary_ip}, &socket) < 0) {
+    if (ipv4_socket_create(tuple->port_number, (struct in_addr) {binary_ip}, socket_out) < 0) {
         report_error("Couldn't create new socket to connect to client with"
                      "I.P: %s and Port: %" PRIu16,
-                tuple->ip, tuple->port_number);
+                     tuple->ip, tuple->port_number);
         return false;
     }
-    if (ipv4_socket_connect(&socket) < 0) {
+    if (ipv4_socket_connect(socket_out) < 0) {
         report_error("Couldn't connect to client with I.P: %s and Port: %" PRIu16,
-                tuple->ip, tuple->port_number);
+                     tuple->ip, tuple->port_number);
         return false;
     }
     return true;
