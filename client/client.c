@@ -33,16 +33,22 @@ shared_buffer info_buffer;
 pthread_t *threads;
 
 void log_out(int signum) {
-    request log_off_request = create_log_off_request();
+    char *ip = get_self_ip_address();
+    request log_off_request = create_log_off_request(options.port_number, ip);
     if (!ipv4_socket_create_and_connect(&server_as_client.tuple, &server_as_client.socket)) {
-        report_error("Couldn't send log off request to server");
+        report_error("Couldn't connect to server");
+        goto __CANCEL_THREADS__;
     }
+    if (ipv4_socket_send_request(&server_as_client.socket, log_off_request) < 0) {
+        report_error("Couldn't send log of request to server");
+    }
+
+    __CANCEL_THREADS__:
     free_request(&log_off_request);
 
     for (size_t i = 0U; i != options.worker_threads; ++i) {
         pthread_cancel(threads[i]);
     }
-    printf("Exiting...\n");
     exit(EXIT_SUCCESS);
 }
 
@@ -81,24 +87,19 @@ void connect_to_server(void) {
     if (ipv4_socket_connect(&server_as_client.socket) < 0) {
         die("Couldn't connect to the server!");
     }
-
-    report_response("Connected to server %s with port %" PRIu16, options.server_ip, options.server_port_number);
 }
 
 bool request_files_from_client(connected_client *client) {
     bool result = true;
     request request = create_get_file_list_request();
-    if (!ipv4_socket_create_and_connect(&client->tuple, &client->socket)) {
+    ipv4_socket new_socket;
+    if (!ipv4_socket_create_and_connect(&client->tuple, &new_socket)) {
         report_error("Couldn't connect to client");
         result = false;
         goto __ERROR__;
     }
-    fprintf(stderr, "[REQUEST_FILES] Connected to client with IP: %s and port: %" PRIu16
-                    " and socket descriptor is %d\n",
-            client->tuple.ip, client->tuple.port_number,
-            client->socket.socket_fd);
 
-    if (ipv4_socket_send_request(&client->socket, request) < 0) {
+    if (ipv4_socket_send_request(&new_socket, request) < 0) {
         report_error("Couldn't send GET_FILE_LIST request to client with"
                      "I.P: %s and Port: %" PRIu16,
                      client->tuple.ip, client->tuple.port_number);
@@ -110,7 +111,7 @@ bool request_files_from_client(connected_client *client) {
     client_file_info client_info = {
             .tuple = client->tuple
     };
-    request = ipv4_socket_get_request(&client->socket);
+    request = ipv4_socket_get_request(&new_socket);
 
     for (byte *address = request.data + request.header.command_length;
          address < request.data + request.header.bytes;
@@ -121,8 +122,7 @@ bool request_files_from_client(connected_client *client) {
 
     __ERROR__:
     free_request(&request);
-    close(client->socket.socket_fd);
-    client->socket.socket_fd = -1;
+    close(new_socket.socket_fd);
 
     return result;
 }
@@ -144,26 +144,22 @@ bool request_file_from_client(connected_client *client, client_file_info *info) 
     }
 
     request = create_get_file_request(&info->pathname_with_version);
-    if (!ipv4_socket_create_and_connect(&client->tuple, &client->socket)) {
+    ipv4_socket new_socket;
+    if (!ipv4_socket_create_and_connect(&client->tuple, &new_socket)) {
         report_error("Couldn't connect to client");
         result = false;
         goto __ERROR__;
     }
 
-    fprintf(stderr, "[REQUEST_FILE] Connected to client with IP: %s and port: %" PRIu16
-                    " and socket descriptor is %d\n",
-            client->tuple.ip, client->tuple.port_number,
-            client->socket.socket_fd);
-
-
-    if (ipv4_socket_send_request(&client->socket, request) < 0) {
+    if (ipv4_socket_send_request(&new_socket, request) < 0) {
         report_error("Couldn't send GET_FILE request to client");
         result = false;
         goto __ERROR__;
     }
     free_request(&request);
 
-    request = ipv4_socket_get_request(&client->socket);
+    request = ipv4_socket_get_request(&new_socket);
+
     if (str_n_equals(request.data, FILE_NOT_FOUND, request.header.command_length)) {
         result = false;
         report_response("File not found!");
@@ -188,8 +184,7 @@ bool request_file_from_client(connected_client *client, client_file_info *info) 
 
     close(fd);
 
-    close(client->socket.socket_fd);
-    client->socket.socket_fd = -1;
+    close(new_socket.socket_fd);
     __ERROR__:
     free(full_pathname);
     free_request(&request);
@@ -282,9 +277,6 @@ void get_other_clients_from_server(void) {
     server_as_client.socket.socket_fd = -1;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
-
 int main(int argc, char *argv[]) {
     if (argc < 13) usage();
     options = parse_command_line_arguments(argc, argv);
@@ -317,9 +309,6 @@ int main(int argc, char *argv[]) {
             handle_incoming_requests(&arguments);
         }
     }
-
     wait_threads();
     return EXIT_SUCCESS;
 }
-
-#pragma clang diagnostic pop

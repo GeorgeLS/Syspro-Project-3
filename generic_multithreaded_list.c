@@ -67,6 +67,7 @@ void list_lpush(list *list, void *data) {
 
     if (list->size != 0U) {
         __list_insert(list->head->previous, list->head, node);
+        list->head = node;
     } else {
         list->head = node;
     }
@@ -89,6 +90,14 @@ void list_remove(list *list, void *data) {
         }
         curr = curr->next;
     } while (curr != list->head);
+
+    --list->size;
+
+    if (list->size == 0) {
+        list->head = NULL;
+    } else if (list->head == curr) {
+        list->head = list->head->next;
+    }
 
     if (list->multithreaded) {
         pthread_mutex_unlock(&list->mutex);

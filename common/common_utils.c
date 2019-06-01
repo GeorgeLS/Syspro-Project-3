@@ -70,28 +70,32 @@ handle_get_clients_request(connected_client *connected_client, list *connected_c
 }
 
 static void
-handle_log_off_request(connected_client *client, list *connected_clients) {
+handle_log_off_request(connected_client *client, byte *data, list *connected_clients) {
     close(client->socket.socket_fd);
+    client_tuple tuple = client_tuple_from_ntoh_bytes(data);
+    client->tuple = tuple;
     list_remove(connected_clients, client);
     request request = create_user_off_request(client->tuple.port_number, client->tuple.ip);
 
     list_node *curr = connected_clients->head;
-    do {
-        connected_client *client_to_notify = curr->data;
-        if (!ipv4_socket_create_and_connect(&client_to_notify->tuple, &client_to_notify->socket)) {
-            report_error("Couldn't connect to client!");
-            goto __NEXT_LOOP__;
-        }
-        if (ipv4_socket_send_request(&client_to_notify->socket, request) < 0) {
-            report_error("Couldn't send USER_OFF request to existing client!");
-            goto __NEXT_LOOP__;
-        }
-        close(client_to_notify->socket.socket_fd);
-        client_to_notify->socket.socket_fd = -1;
+    if (curr != NULL) {
+        do {
+            connected_client *client_to_notify = curr->data;
+            if (!ipv4_socket_create_and_connect(&client_to_notify->tuple, &client_to_notify->socket)) {
+                report_error("Couldn't connect to client!");
+                goto __NEXT_LOOP__;
+            }
+            if (ipv4_socket_send_request(&client_to_notify->socket, request) < 0) {
+                report_error("Couldn't send USER_OFF request to existing client!");
+                goto __NEXT_LOOP__;
+            }
+            close(client_to_notify->socket.socket_fd);
+            client_to_notify->socket.socket_fd = -1;
 
-        __NEXT_LOOP__:
-        curr = curr->next;
-    } while (curr != connected_clients->head);
+            __NEXT_LOOP__:
+            curr = curr->next;
+        } while (curr != connected_clients->head);
+    }
 
     free_request(&request);
 }
@@ -164,6 +168,7 @@ handle_get_file_request(connected_client *connected_client, byte *data, u32 byte
             if (ipv4_socket_send_request(&connected_client->socket, file_request) < 0) {
                 report_error("Couldn't send file requested to client");
             }
+            free_request(&file_request);
         }
         free(file.data);
     }
@@ -184,7 +189,7 @@ handle_request(request_handler_arguments *arguments, connected_client *connected
     } else if (str_n_equals(data, GET_CLIENTS, command_length)) {
         handle_get_clients_request(connected_client, connected_clients);
     } else if (str_n_equals(data, LOG_OFF, command_length)) {
-        handle_log_off_request(connected_client, connected_clients);
+        handle_log_off_request(connected_client, data + command_length, connected_clients);
     } else if (str_n_equals(data, GET_FILE, command_length)) {
         handle_get_file_request(connected_client, data + command_length, request.header.bytes - command_length);
     } else if (str_n_equals(data, GET_FILE_LIST, command_length)) {
@@ -201,9 +206,6 @@ handle_request(request_handler_arguments *arguments, connected_client *connected
 static void
 serve_client(request_handler_arguments *arguments, connected_client *connected_client) {
     request request = ipv4_socket_get_request(&connected_client->socket);
-    if (IS_EMPTY(request)) {
-        return;
-    }
     handle_request(arguments, connected_client, request);
     free_request(&request);
 }
@@ -217,7 +219,6 @@ void handle_incoming_requests(request_handler_arguments *arguments) {
         if (ipv4_socket_accept(server_socket, &client_socket) < 0) {
             report_error("Couldn't accept an incoming connection!");
         }
-        report_response("Accepted connection!");
         connected_client new_client = {
                 .socket = client_socket,
         };

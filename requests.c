@@ -64,19 +64,28 @@ request create_user_on_request(u16 port_number, const char *restrict address) {
     };
 }
 
-request create_log_off_request(void) {
+request create_log_off_request(u16 port_number, const char *restrict address) {
     request_header header = {
             .command_length = __COMMAND_LENGTH(LOG_OFF),
-            .bytes = __COMMAND_LENGTH(LOG_OFF)
+            .bytes = __COMMAND_LENGTH(LOG_OFF) + IPV4_ADDRESS_SIZE
     };
 
     byte *data = __MALLOC__(header.bytes, byte);
+    byte *base_address = data;
 
     memcpy(data, LOG_OFF, header.command_length);
+    data += header.command_length;
+
+    in_addr_t address_bytes = inet_addr(address);
+    memcpy(data, &address_bytes, sizeof(in_addr_t));
+    data += sizeof(in_addr_t);
+
+    u16 port_number_network_order = htons(port_number);
+    memcpy(data, &port_number_network_order, sizeof(u16));
 
     return (request) {
             .header = header,
-            .data = data
+            .data = base_address
     };
 }
 
@@ -180,7 +189,6 @@ request create_file_list_request(const char *restrict root_directory) {
     };
 
     byte *data = __MALLOC__(header.bytes, byte);
-    memset(data, '\0', header.bytes);
     byte *base_address = data;
 
     memcpy(data, FILE_LIST, header.command_length);
@@ -195,6 +203,8 @@ request create_file_list_request(const char *restrict root_directory) {
         data += sizeof(u64);
         curr = curr->next;
     } while (curr != versioned_pathnames.head);
+
+    list_destroy(&versioned_pathnames);
 
     return (request) {
             .data = base_address,

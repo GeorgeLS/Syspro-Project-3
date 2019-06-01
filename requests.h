@@ -72,7 +72,8 @@ request create_log_on_request(u16 port_number, const char *restrict address);
 __NON_NULL__(2)
 request create_user_on_request(u16 port_number, const char *restrict address);
 
-request create_log_off_request(void);
+__NON_NULL__(2)
+request create_log_off_request(u16 port_number, const char *restrict address);
 
 __NON_NULL__(2)
 request create_user_off_request(u16 port_number, const char *restrict address);

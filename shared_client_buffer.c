@@ -51,7 +51,7 @@ void shared_buffer_push(shared_buffer *buffer, client_file_info *info) {
     buffer->info_table[buffer->right] = *info;
     buffer->right = shared_buffer_next_right_index(buffer);
 
-    pthread_cond_broadcast(&buffer->condition);
+    pthread_cond_signal(&buffer->condition);
     pthread_mutex_unlock(&buffer->mutex);
 }
 
@@ -66,7 +66,7 @@ client_file_info *shared_buffer_pop(shared_buffer *buffer) {
     element = &buffer->info_table[buffer->left];
     buffer->left = shared_buffer_next_left_index(buffer);
 
-    pthread_cond_broadcast(&buffer->condition);
+    pthread_cond_signal(&buffer->condition);
     pthread_mutex_unlock(&buffer->mutex);
 
     return element;

@@ -82,14 +82,17 @@ ssize_t ipv4_socket_send_request(ipv4_socket *receiver, request request) {
 
 request ipv4_socket_get_request(ipv4_socket *sender) {
     request_header header = {0};
-    if (read(sender->socket_fd, &header, sizeof(request_header)) <= 0) {
+    int res;
+    if ((res = read(sender->socket_fd, &header, sizeof(request_header))) <= 0) {
+        report_response("Read returned %d in get_request while getting the header", res);
         return (request) {0};
     }
     header = header_ntoh(header);
 
     byte *data = __MALLOC__(header.bytes, byte);
 
-    if (read(sender->socket_fd, data, header.bytes) <= 0) {
+    if ((res = read(sender->socket_fd, data, header.bytes)) <= 0) {
+        report_response("Read returned %d in get_request while getting the data", res);
         free(data);
         return (request) {0};
     }
