@@ -22,9 +22,6 @@ static void setup_server_socket(void) {
     }
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
-
 int main(int argc, char *argv[]) {
     if (argc < 3) usage();
     options = parse_command_line_arguments(argc, argv);
@@ -51,5 +48,3 @@ int main(int argc, char *argv[]) {
     }
     return EXIT_SUCCESS;
 }
-
-#pragma clang diagnostic pop
