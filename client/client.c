@@ -191,9 +191,6 @@ bool request_file_from_client(connected_client *client, client_file_info *info) 
     return result;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
-
 void *worker_function(void *args) {
     while (true) {
         client_file_info *info = shared_buffer_pop(&info_buffer);
@@ -220,8 +217,6 @@ void *worker_function(void *args) {
     }
     pthread_exit(NULL);
 }
-
-#pragma clang diagnostic pop
 
 void create_threads(void) {
     for (size_t i = 0U; i != options.worker_threads; ++i) {
