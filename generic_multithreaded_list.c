@@ -37,12 +37,14 @@ list list_create(equality_comparer comparer, bool multithreaded) {
 
 void list_destroy(list *list) {
     list_node *curr = list->head;
-    do {
-        list_node *temp = curr;
-        curr = curr->next;
-        free(temp->data);
-        free(temp);
-    } while (curr != list->head);
+    if (curr != NULL) {
+        do {
+            list_node *temp = curr;
+            curr = curr->next;
+            free(temp->data);
+            free(temp);
+        } while (curr != list->head);
+    }
 }
 
 void list_rpush(list *list, void *data) {

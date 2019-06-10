@@ -1,5 +1,4 @@
 #define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <netdb.h>
@@ -44,11 +43,16 @@ void log_out(int signum) {
     }
 
     __CANCEL_THREADS__:
+
     free_request(&log_off_request);
 
     for (size_t i = 0U; i != options.worker_threads; ++i) {
         pthread_cancel(threads[i]);
     }
+    
+    list_destroy(&connected_clients);
+    shared_bufffer_destroy(&info_buffer);
+    
     exit(EXIT_SUCCESS);
 }
 
@@ -68,7 +72,7 @@ void setup_client_socket() {
         die("Could not bind client socket!");
     }
     if (ipv4_socket_listen(&self_socket) < 0) {
-        die("Could not set client socket for listening!");
+        die("Could not set client socket for listening!!");
     }
 }
 
@@ -120,6 +124,11 @@ bool request_files_from_client(connected_client *client) {
         shared_buffer_push(&info_buffer, &client_info);
     }
 
+    report_response("Received file list from Client with:\n"
+                    "\tIP: %s\n"
+                    "\tPort: %" PRIu16,
+                    client->tuple.ip, client->tuple.port_number);
+
     __ERROR__:
     free_request(&request);
     close(new_socket.socket_fd);
@@ -159,6 +168,12 @@ bool request_file_from_client(connected_client *client, client_file_info *info) 
     free_request(&request);
 
     request = ipv4_socket_get_request(&new_socket);
+
+    report_response("Received file %s from Client with:\n"
+                    "\tIP: %s\n"
+                    "\tPort: %" PRIu16,
+                    info->pathname_with_version.pathname,
+                    client->tuple.ip, client->tuple.port_number);
 
     if (str_n_equals(request.data, FILE_NOT_FOUND, request.header.command_length)) {
         result = false;

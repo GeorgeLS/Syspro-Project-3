@@ -27,9 +27,18 @@ shared_buffer shared_buffer_create(size_t size) {
             .right = 0U
     };
     pthread_mutex_init(&buffer.mutex, NULL);
-    pthread_cond_init(&buffer.condition, NULL);
+    pthread_cond_init(&buffer.condition_empty, NULL);
+    pthread_cond_init(&buffer.condition_full, NULL);
     return buffer;
 }
+
+void shared_bufffer_destroy(shared_buffer *buffer) {
+    free(buffer->info_table);
+    pthread_mutex_destroy(&buffer->mutex);
+    pthread_cond_destroy(&buffer->condition_empty);
+    pthread_cond_destroy(&buffer->condition_full);
+}
+
 
 bool shared_buffer_full(shared_buffer *buffer) {
     bool result = shared_buffer_next_right_index(buffer) == buffer->left;
@@ -45,13 +54,13 @@ void shared_buffer_push(shared_buffer *buffer, client_file_info *info) {
     pthread_mutex_lock(&buffer->mutex);
 
     while (shared_buffer_full(buffer)) {
-        pthread_cond_wait(&buffer->condition, &buffer->mutex);
+        pthread_cond_wait(&buffer->condition_full, &buffer->mutex);
     }
 
     buffer->info_table[buffer->right] = *info;
     buffer->right = shared_buffer_next_right_index(buffer);
 
-    pthread_cond_signal(&buffer->condition);
+    pthread_cond_signal(&buffer->condition_empty);
     pthread_mutex_unlock(&buffer->mutex);
 }
 
@@ -60,13 +69,13 @@ client_file_info *shared_buffer_pop(shared_buffer *buffer) {
     pthread_mutex_lock(&buffer->mutex);
 
     while (shared_buffer_emtpy(buffer)) {
-        pthread_cond_wait(&buffer->condition, &buffer->mutex);
+        pthread_cond_wait(&buffer->condition_empty, &buffer->mutex);
     }
 
     element = &buffer->info_table[buffer->left];
     buffer->left = shared_buffer_next_left_index(buffer);
 
-    pthread_cond_signal(&buffer->condition);
+    pthread_cond_signal(&buffer->condition_full);
     pthread_mutex_unlock(&buffer->mutex);
 
     return element;

@@ -8,7 +8,6 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <bits/types/FILE.h>
 
 void free_request(request *request) {
     free(request->data);
